@@ -1,22 +1,29 @@
 import json
 import os
 
-def load_config(config_path='config.json', defaults=None):
-    if defaults is None:
-        defaults = {}
-    
-    if not os.path.isfile(config_path):
-        return defaults
-    
-    with open(config_path, 'r') as config_file:
+class ConfigError(Exception):
+    pass
+
+def load_config(file_path):
+    if not os.path.exists(file_path):
+        raise ConfigError(f"Configuration file '{file_path}' does not exist.")
+
+    with open(file_path, 'r') as file:
         try:
-            user_config = json.load(config_file)
-        except json.JSONDecodeError:
-            return defaults
-    
-    return {**defaults, **user_config}
+            config = json.load(file)
+        except json.JSONDecodeError as e:
+            raise ConfigError(f"Error decoding JSON from '{file_path}': {str(e)}")
+
+    required_keys = ['window_size', 'fullscreen', 'volume']
+    for key in required_keys:
+        if key not in config:
+            raise ConfigError(f"Missing required config key: '{key}'")
+
+    return config
 
 if __name__ == '__main__':
-    default_settings = {'window_size': '800x600', 'fullscreen': False}
-    config = load_config(defaults=default_settings)
-    print(config)
+    try:
+        config = load_config('config.json')
+        print('Configuration loaded successfully:', config)
+    except ConfigError as e:
+        print('Configuration error:', e)
