@@ -1,30 +1,43 @@
 import time
-import numpy as np
 
-class Game:
-    def __init__(self, players):
-        self.players = players
-        self.scoreboard = np.zeros(len(players))
+class GameCore:
+    def __init__(self):
+        self.entities = []
+        self.render_time = 0
 
-    def update_scores(self, results):
-        for idx, score in enumerate(results):
-            self.scoreboard[idx] += score
+    def add_entity(self, entity):
+        self.entities.append(entity)
 
-    def optimize_performance(self, iterations):
+    def update_entities(self):
+        for entity in self.entities:
+            entity.update()
+
+    def render(self):
         start_time = time.time()
-        player_stats = np.zeros((len(self.players), iterations))
-        for i in range(iterations):
-            performance = self.analyze_player_performance()
-            player_stats[:, i] = performance
-        average_performance = np.mean(player_stats, axis=1)
-        print(f'Average Performance: {average_performance}')
-        print(f'Execution Time: {time.time() - start_time} seconds')
+        self.update_entities()
+        for entity in self.entities:
+            entity.render()
+        self.render_time = time.time() - start_time
 
-    def analyze_player_performance(self):
-        return np.random.randint(1, 100, size=len(self.players))
+    def get_render_time(self):
+        return self.render_time
 
-# Sample game instance
+class GameEntity:
+    def __init__(self, name):
+        self.name = name
+
+    def update(self):
+        pass  # Placeholder for update logic
+
+    def render(self):
+        print(f'Rendering {self.name}')  
+
+# Example usage
 if __name__ == '__main__':
-    game = Game(['Alice', 'Bob', 'Charlie'])
-    game.update_scores([10, 20, 30])
-    game.optimize_performance(100)
+    game = GameCore()
+    player = GameEntity('Player')
+    enemy = GameEntity('Enemy')
+    game.add_entity(player)
+    game.add_entity(enemy)
+    game.render()
+    print(f'Time taken to render: {game.get_render_time():.5f} seconds')
