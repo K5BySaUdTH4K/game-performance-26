@@ -1,20 +1,23 @@
-class GameError(Exception):
-    def __init__(self, message, code=500):
-        self.message = message
+class GameException(Exception):
+    """Base class for all game exceptions."""
+    def __init__(self, message, code=None):
+        super().__init__(message)
         self.code = code
-        super().__init__(self.message)
 
-class DataNotFoundError(GameError):
-    def __init__(self, data_id):
-        message = f'No data found for ID: {data_id}'
+class PlayerNotFoundException(GameException):
+    """Raised when a player is not found."""
+    def __init__(self, player_id):
+        message = f"Player with ID {player_id} not found"
         super().__init__(message, code=404)
 
-class InvalidGameStateError(GameError):
-    def __init__(self, state):
-        message = f'Invalid game state: {state}'
-        super().__init__(message, code=400)
+class InsufficientResourcesException(GameException):
+    """Raised when a player has insufficient resources."""
+    def __init__(self, resource, required, available):
+        message = f"Insufficient {resource}: required {required}, available {available}"
+        super().__init__(message, code=403)
 
-class ResourceLimitExceededError(GameError):
-    def __init__(self, resource):
-        message = f'Resource limit exceeded: {resource}'
-        super().__init__(message, code=429)
+class LevelUpException(GameException):
+    """Raised when a player cannot level up."""
+    def __init__(self, player_id, level):
+        message = f"Player {player_id} cannot level up to level {level}"
+        super().__init__(message, code=400)
