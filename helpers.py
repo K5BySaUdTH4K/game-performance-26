@@ -1,29 +1,29 @@
 import random
 import math
 
-def generate_random_coordinates(min_x, max_x, min_y, max_y):
-    return (random.uniform(min_x, max_x), random.uniform(min_y, max_y))
+def get_random_position(boundaries):
+    x = random.uniform(boundaries['x_min'], boundaries['x_max'])
+    y = random.uniform(boundaries['y_min'], boundaries['y_max'])
+    return (x, y)
 
 
-def calculate_distance(point_a, point_b):
-    return math.sqrt((point_b[0] - point_a[0]) ** 2 + (point_b[1] - point_a[1]) ** 2)
+def euclidean_distance(point1, point2):
+    return math.sqrt((point2[0] - point1[0]) ** 2 + (point2[1] - point1[1]) ** 2)
+
+
+def is_within_bounds(position, boundaries):
+    return (boundaries['x_min'] <= position[0] <= boundaries['x_max'] and
+            boundaries['y_min'] <= position[1] <= boundaries['y_max'])
 
 
 def clamp(value, min_value, max_value):
     return max(min_value, min(value, max_value))
 
 
-def lerp(start, end, t):
-    return start + (end - start) * t
+def interpolate(value1, value2, factor):
+    return value1 + (value2 - value1) * factor
 
 
-def is_point_in_circle(point, circle_center, radius):
-    return calculate_distance(point, circle_center) <= radius
-
-
-def generate_unique_id(existing_ids):
-    new_id = random.randint(1, 1000000)
-    while new_id in existing_ids:
-        new_id = random.randint(1, 1000000)
-    existing_ids.add(new_id)
-    return new_id
+def normalize_vector(vector):
+    magnitude = math.sqrt(vector[0] ** 2 + vector[1] ** 2)
+    return (vector[0] / magnitude, vector[1] / magnitude) if magnitude > 0 else (0, 0)
