@@ -1,38 +1,25 @@
+import time
 import random
+import requests
 
-class GameHandler:
-    def __init__(self):
-        self.players = []
-        self.rounds = 0
+def retry_request(url, retries=3, backoff_factor=0.5):
+    for i in range(retries):
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.HTTPError as e:
+            print(f'HTTP error: {e}')
+        except requests.exceptions.RequestException as e:
+            print(f'Request failed: {e}')
+        time.sleep(backoff_factor * (2 ** i))  # Exponential backoff
+    raise Exception('Max retries exceeded')
 
-    def add_player(self, name):
-        self.players.append(name)
-        print(f'Player {name} added.')
-
-    def start_game(self):
-        if len(self.players) < 2:
-            raise ValueError('At least 2 players required.')
-        self.rounds = 5  # predefined rounds
-        print(f'Game starting with {self.rounds} rounds.')
-
-    def play_round(self):
-        if self.rounds <= 0:
-            print('No rounds left to play!')
-            return
-        winner = random.choice(self.players)
-        print(f'Round winner: {winner}')
-        self.rounds -= 1
-
-    def end_game(self):
-        print('Game Over!')
-        self.players = []
-        self.rounds = 0
-
+# Example usage
 if __name__ == '__main__':
-    handler = GameHandler()
-    handler.add_player('Alice')
-    handler.add_player('Bob')
-    handler.start_game()
-    for _ in range(5):
-        handler.play_round()
-    handler.end_game()
+    url = 'https://api.example.com/data'
+    try:
+        data = retry_request(url)
+        print('Data:', data)
+    except Exception as e:
+        print('Failed to retrieve data:', e)
