@@ -1,31 +1,39 @@
-import sys
-import json
 import random
+import logging
 
-def validate_input(user_input):
-    if not isinstance(user_input, dict):
-        raise ValueError('Input must be a dictionary')
-    if 'action' not in user_input or 'value' not in user_input:
-        raise KeyError('Input must contain both action and value keys')
-    if not isinstance(user_input['value'], int) or user_input['value'] < 0:
-        raise ValueError('Value must be a non-negative integer')
+def process_game_data(data):
+    if not isinstance(data, list):
+        logging.error('Input data is not a list.')
+        raise ValueError('Expected a list of game data.')
+    if len(data) == 0:
+        logging.warning('Received an empty list.')
+        return 'No data to process'
+    
+    processed_data = []
+    for item in data:
+        if not isinstance(item, dict):
+            logging.error(f'Invalid item in list: {item}')
+            continue
+        try:
+            score = item.get('score', 0)
+            if score < 0:
+                raise ValueError('Score cannot be negative')
+            level = item.get('level', 1)
+            processed_data.append({'score': score, 'level': level})
+        except ValueError as ve:
+            logging.error(f'Error processing item {item}: {ve}')
+    
+    if len(processed_data) == 0:
+        logging.info('No valid data processed.')
+    return processed_data
 
-def process_action(action, value):
-    if action == 'increase':
-        print(f'Increasing score by {value}')
-        return random.randint(1, 10) * value
-    elif action == 'decrease':
-        print(f'Decreasing score by {value}')
-        return -random.randint(1, 10) * value
-    else:
-        raise ValueError('Invalid action: Must be increase or decrease')
-
+# Simulate some game data to test the function
 if __name__ == '__main__':
-    user_input = json.loads(sys.stdin.read())
-    try:
-        validate_input(user_input)
-        result = process_action(user_input['action'], user_input['value'])
-        print(f'Process result: {result}')
-    except (ValueError, KeyError) as e:
-        print(f'Error: {e}')
-        sys.exit(1)
+    example_data = [
+        {'score': random.randint(-10, 100), 'level': random.randint(1, 10)},
+        {'score': 50.5, 'level': 2},
+        {'level': 3},
+        'invalid_item',
+        {}  # This will be ignored as it does not contain score
+    ]
+    print(process_game_data(example_data))
