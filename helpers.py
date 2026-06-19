@@ -1,29 +1,29 @@
-import random
-import math
+import json
+from typing import Any, Dict, List
 
-def get_random_position(boundaries):
-    x = random.uniform(boundaries['x_min'], boundaries['x_max'])
-    y = random.uniform(boundaries['y_min'], boundaries['y_max'])
-    return (x, y)
-
-
-def euclidean_distance(point1, point2):
-    return math.sqrt((point2[0] - point1[0]) ** 2 + (point2[1] - point1[1]) ** 2)
-
-
-def is_within_bounds(position, boundaries):
-    return (boundaries['x_min'] <= position[0] <= boundaries['x_max'] and
-            boundaries['y_min'] <= position[1] <= boundaries['y_max'])
+def load_game_data(file_path: str) -> Dict[str, Any]:
+    try:
+        with open(file_path, 'r') as file:
+            return json.load(file)
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        print(f"Error loading game data: {e}")
+        return {}
 
 
-def clamp(value, min_value, max_value):
-    return max(min_value, min(value, max_value))
+def save_game_data(file_path: str, data: Dict[str, Any]) -> None:
+    with open(file_path, 'w') as file:
+        json.dump(data, file, indent=4)
 
 
-def interpolate(value1, value2, factor):
-    return value1 + (value2 - value1) * factor
+def update_player_score(game_data: Dict[str, Any], player_id: str, score_delta: int) -> None:
+    players = game_data.get('players', [])
+    for player in players:
+        if player['id'] == player_id:
+            player['score'] += score_delta
+            break
 
 
-def normalize_vector(vector):
-    magnitude = math.sqrt(vector[0] ** 2 + vector[1] ** 2)
-    return (vector[0] / magnitude, vector[1] / magnitude) if magnitude > 0 else (0, 0)
+def get_top_players(game_data: Dict[str, Any], top_n: int = 5) -> List[Dict[str, Any]]:
+    players = game_data.get('players', [])
+    sorted_players = sorted(players, key=lambda x: x['score'], reverse=True)
+    return sorted_players[:top_n]
