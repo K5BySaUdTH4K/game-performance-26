@@ -1,39 +1,36 @@
 import logging
-import os
-from logging.handlers import RotatingFileHandler
 
-def setup_logger(log_file='game.log', max_bytes=5*1024*1024, backup_count=3):
-    logger = logging.getLogger('game_logger')
-    logger.setLevel(logging.DEBUG)
-    
-    # Create a directory for logs if it doesn't exist
-    if not os.path.exists('logs'):
-        os.makedirs('logs')
-    
-    # Create a rotating file handler
-    handler = RotatingFileHandler(os.path.join('logs', log_file), maxBytes=max_bytes, backupCount=backup_count)
-    handler.setLevel(logging.DEBUG)
+class CustomLogger:
+    def __init__(self, name):
+        self.logger = logging.getLogger(name)
+        self.logger.setLevel(logging.DEBUG)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        ch = logging.StreamHandler()
+        ch.setFormatter(formatter)
+        self.logger.addHandler(ch)
 
-    # Create a console handler
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
-    
-    # Define formatter and add it to both handlers
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    handler.setFormatter(formatter)
-    console_handler.setFormatter(formatter)
-    
-    # Add handlers to the logger
-    logger.addHandler(handler)
-    logger.addHandler(console_handler)
-    
-    return logger
+    def debug(self, message):
+        self.logger.debug(message)
 
-# Example usage:
-if __name__ == '__main__':
-    log = setup_logger()
-    log.debug('This is a debug message')
-    log.info('This is an info message')
-    log.warning('This is a warning message')
-    log.error('This is an error message')
-    log.critical('This is a critical message')
+    def info(self, message):
+        self.logger.info(message)
+
+    def warning(self, message):
+        self.logger.warning(message)
+
+    def error(self, message):
+        self.logger.error(message)
+
+    def critical(self, message):
+        self.logger.critical(message)
+
+    def set_level(self, level):
+        self.logger.setLevel(level)
+
+# Usage of CustomLogger
+logger = CustomLogger('GamePerformanceLogger')
+logger.info('Logging initialized')
+logger.debug('This is a debug message')
+logger.warning('This is a warning message')
+logger.error('This is an error message')
+logger.critical('This is a critical message')
