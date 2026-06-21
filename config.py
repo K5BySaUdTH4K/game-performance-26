@@ -1,29 +1,34 @@
 import json
-import os
 
 class ConfigError(Exception):
     pass
 
-def load_config(file_path):
-    if not os.path.exists(file_path):
-        raise ConfigError(f"Configuration file '{file_path}' does not exist.")
+class GameConfig:
+    def __init__(self, config_path):
+        self.config_path = config_path
+        self.config_data = self.load_config()
 
-    with open(file_path, 'r') as file:
+    def load_config(self):
         try:
-            config = json.load(file)
-        except json.JSONDecodeError as e:
-            raise ConfigError(f"Error decoding JSON from '{file_path}': {str(e)}")
+            with open(self.config_path, 'r') as file:
+                data = json.load(file)
+            self.validate_config(data)
+            return data
+        except FileNotFoundError:
+            raise ConfigError(f'Config file not found: {self.config_path}')
+        except json.JSONDecodeError:
+            raise ConfigError('Error parsing JSON from the config file')
 
-    required_keys = ['window_size', 'fullscreen', 'volume']
-    for key in required_keys:
-        if key not in config:
-            raise ConfigError(f"Missing required config key: '{key}'")
+    def validate_config(self, data):
+        required_keys = ['screen_width', 'screen_height', 'fps']
+        for key in required_keys:
+            if key not in data:
+                raise ConfigError(f'Missing required config key: {key}')
+            elif not isinstance(data[key], int) or data[key] <= 0:
+                raise ConfigError(f'Invalid value for {key}: must be a positive integer')
 
-    return config
-
-if __name__ == '__main__':
-    try:
-        config = load_config('config.json')
-        print('Configuration loaded successfully:', config)
-    except ConfigError as e:
-        print('Configuration error:', e)
+    def get(self, key):
+        if key in self.config_data:
+            return self.config_data[key]
+        else:
+            raise ConfigError(f'Config key {key} not found')
