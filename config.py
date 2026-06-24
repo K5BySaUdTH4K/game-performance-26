@@ -1,34 +1,28 @@
 import json
+import os
 
-class ConfigError(Exception):
-    pass
+class ConfigLoader:
+    def __init__(self, default_config_path):
+        self.default_config_path = default_config_path
+        self.config = self.load_default_config()
 
-class GameConfig:
-    def __init__(self, config_path):
-        self.config_path = config_path
-        self.config_data = self.load_config()
+    def load_default_config(self):
+        if not os.path.isfile(self.default_config_path):
+            raise FileNotFoundError(f"Config file not found: {self.default_config_path}")
+        with open(self.default_config_path, 'r') as json_file:
+            return json.load(json_file)
 
-    def load_config(self):
-        try:
-            with open(self.config_path, 'r') as file:
-                data = json.load(file)
-            self.validate_config(data)
-            return data
-        except FileNotFoundError:
-            raise ConfigError(f'Config file not found: {self.config_path}')
-        except json.JSONDecodeError:
-            raise ConfigError('Error parsing JSON from the config file')
+    def get_value(self, key, default=None):
+        return self.config.get(key, default)
 
-    def validate_config(self, data):
-        required_keys = ['screen_width', 'screen_height', 'fps']
-        for key in required_keys:
-            if key not in data:
-                raise ConfigError(f'Missing required config key: {key}')
-            elif not isinstance(data[key], int) or data[key] <= 0:
-                raise ConfigError(f'Invalid value for {key}: must be a positive integer')
+    def load_additional_config(self, additional_config_path):
+        if os.path.isfile(additional_config_path):
+            with open(additional_config_path, 'r') as json_file:
+                additional_config = json.load(json_file)
+                self.config.update(additional_config)
 
-    def get(self, key):
-        if key in self.config_data:
-            return self.config_data[key]
-        else:
-            raise ConfigError(f'Config key {key} not found')
+# Usage
+if __name__ == '__main__':
+    loader = ConfigLoader('default_config.json')
+    loader.load_additional_config('user_config.json')
+    print(loader.get_value('some_key', 'default_value'))
