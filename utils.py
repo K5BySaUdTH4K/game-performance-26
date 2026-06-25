@@ -1,34 +1,34 @@
 import random
-import numpy as np
+import logging
 
-def generate_random_position(x_limit, y_limit):
-    return random.randint(0, x_limit), random.randint(0, y_limit)
+logging.basicConfig(level=logging.ERROR)
 
+class GameError(Exception):
+    pass
 
-def calculate_distance(point_a, point_b):
-    return np.sqrt((point_b[0] - point_a[0]) ** 2 + (point_b[1] - point_a[1]) ** 2)
+def get_random_number(min_value, max_value):
+    if not isinstance(min_value, int) or not isinstance(max_value, int):
+        raise GameError("min_value and max_value must be integers")
+    if min_value >= max_value:
+        raise GameError("min_value must be less than max_value")
+    return random.randint(min_value, max_value)
 
+def divide_numbers(numerator, denominator):
+    try:
+        if not isinstance(numerator, (int, float)) or not isinstance(denominator, (int, float)):
+            raise GameError("Both numerator and denominator must be numbers")
+        return numerator / denominator
+    except ZeroDivisionError:
+        logging.error("Division by zero encountered")
+        raise GameError("Denominator cannot be zero")
 
-def normalize_vector(vector):
-    magnitude = np.sqrt(sum(v ** 2 for v in vector))
-    return tuple(v / magnitude for v in vector) if magnitude > 0 else vector
-
-
-def clamp(value, min_value, max_value):
-    return max(min_value, min(value, max_value))
-
-
-def random_color():
-    return tuple(random.randint(0, 255) for _ in range(3))
-
-
-def lerp(start, end, t):
-    return start + (end - start) * t
-
-
-def radians_to_degrees(radians):
-    return radians * (180.0 / np.pi)
-
-
-def degrees_to_radians(degrees):
-    return degrees * (np.pi / 180.0)
+def read_file(file_path):
+    try:
+        with open(file_path, 'r') as file:
+            return file.read()
+    except FileNotFoundError:
+        logging.error("File not found: %s", file_path)
+        raise GameError("File not found")
+    except IOError:
+        logging.error("Error reading file: %s", file_path)
+        raise GameError("File reading error")
