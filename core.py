@@ -1,43 +1,37 @@
+import random
 import time
 
-class GameCore:
-    def __init__(self):
-        self.entities = []
-        self.render_time = 0
+class Game:
+    def __init__(self, title):
+        self.title = title
+        self.score = 0
+        self.high_score = 0
+        self.start_time = time.time()
 
-    def add_entity(self, entity):
-        self.entities.append(entity)
+    def play(self):
+        while True:
+            action = self.get_user_input()
+            if action == 'quit':
+                break
+            self.process_action(action)
+        self.end_game()
 
-    def update_entities(self):
-        for entity in self.entities:
-            entity.update()
+    def get_user_input(self):
+        return input(f"{self.title} - Enter action (play/quit): ").strip().lower()
 
-    def render(self):
-        start_time = time.time()
-        self.update_entities()
-        for entity in self.entities:
-            entity.render()
-        self.render_time = time.time() - start_time
+    def process_action(self, action):
+        if action == 'play':
+            points = random.randint(1, 10)
+            self.score += points
+            print(f"You scored {points} points! Total score: {self.score}")
+        else:
+            print("Invalid action, try again.")
 
-    def get_render_time(self):
-        return self.render_time
+    def end_game(self):
+        self.high_score = max(self.high_score, self.score)
+        elapsed_time = time.time() - self.start_time
+        print(f"Game over! Your score: {self.score} | High score: {self.high_score} | Time played: {elapsed_time:.2f} seconds.")
 
-class GameEntity:
-    def __init__(self, name):
-        self.name = name
-
-    def update(self):
-        pass  # Placeholder for update logic
-
-    def render(self):
-        print(f'Rendering {self.name}')  
-
-# Example usage
 if __name__ == '__main__':
-    game = GameCore()
-    player = GameEntity('Player')
-    enemy = GameEntity('Enemy')
-    game.add_entity(player)
-    game.add_entity(enemy)
-    game.render()
-    print(f'Time taken to render: {game.get_render_time():.5f} seconds')
+    game = Game('Awesome Game')
+    game.play()
