@@ -1,21 +1,24 @@
-import requests
-import time
+import sys
 
-class NetworkError(Exception):
+class GameInputError(Exception):
     pass
 
-def retry_request(url, retries=3, delay=2, backoff=2):
-    for attempt in range(retries):
-        try:
-            response = requests.get(url)
-            response.raise_for_status()
-            return response.json()
-        except (requests.exceptions.RequestException, ValueError) as e:
-            if attempt < retries - 1:
-                time.sleep(delay)
-                delay *= backoff  # Exponential backoff
-            else:
-                raise NetworkError(f'Failed to fetch {url}: {str(e)}') from e
+def validate_input(user_input):
+    if not user_input.isdigit() or int(user_input) < 0:
+        raise GameInputError('Input must be a non-negative integer')
+    return int(user_input)
 
-# Example usage:
-# result = retry_request('https://api.example.com/data')
+def main_loop():
+    while True:
+        user_input = input('Enter a score (or type "exit" to quit): ')
+        if user_input.lower() == 'exit':
+            print('Exiting the game...')
+            sys.exit(0)
+        try:
+            score = validate_input(user_input)
+            print(f'Score accepted: {score}')
+        except GameInputError as e:
+            print(e)
+
+if __name__ == '__main__':
+    main_loop()
