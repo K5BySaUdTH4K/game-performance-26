@@ -1,17 +1,17 @@
 # Game Performance 26
 
-Game Performance 26 is a Python-based tool designed to optimize and analyze game performance metrics, enabling developers to enhance their game's efficiency and player experience. By leveraging performance data, developers can make informed decisions to improve graphics rendering, frame rates, and overall gameplay smoothness.
+Game Performance 26 is a Python-based tool designed to analyze and optimize the performance of gaming applications. It provides developers with key metrics and insights to improve frame rates, reduce latency, and enhance overall gaming experiences.
 
 ## Features
 
-- **Real-time Performance Monitoring**: Capture and display critical game metrics such as frame rate, memory usage, and CPU load during gameplay.
-- **Detailed Reporting**: Generate comprehensive reports that break down performance data over various gameplay sessions, making it easier to pinpoint performance bottlenecks.
-- **Compatibility with Popular Engines**: Effortlessly integrate with popular game engines like Unity and Unreal Engine, enhancing their built-in profiling tools.
-- **Customizable Alerts**: Set performance thresholds that trigger notifications, allowing developers to address issues before they impact the gameplay experience.
+- **Frame Rate Monitoring**: Capture and display real-time frame rates to identify performance bottlenecks.
+- **Resource Utilization Tracking**: Analyze CPU, GPU, and memory utilization statistics to optimize resource allocation.
+- **Benchmarking Tools**: Run performance benchmarks on various hardware configurations to compare results and make informed decisions for optimization.
+- **Customizable Reports**: Generate detailed performance reports that highlight areas needing improvement and provide actionable insights.
 
 ## Installation
 
-To get started with Game Performance 26, you'll need to have Python installed. Clone the repository and install the required packages using the following commands:
+To install Game Performance 26, make sure you have Python 3.7 or newer. You can install the package using pip by executing the following commands in your terminal:
 
 ```bash
 git clone https://github.com/Developer/game-performance-26.git
@@ -21,28 +21,16 @@ pip install -r requirements.txt
 
 ## Basic Usage
 
-Once installed, you can run the performance tool within your game environment. Here’s a simple example of how to initiate performance monitoring:
+Once installed, you can run the performance analysis tool with a simple command. Assuming you have a game script called `my_game.py`, execute the following:
 
-```python
-from game_performance import PerformanceMonitor
-
-# Initialize the performance monitor
-monitor = PerformanceMonitor()
-
-# Start monitoring
-monitor.start()
-
-# Your game logic here
-while True:
-    # Update game, render scenes, etc.
-    monitor.update()
-    
-    if monitor.has_alerts():
-        print("Performance alert! Check your metrics.")
+```bash
+python performance_analyzer.py my_game.py
 ```
 
-Monitor your game's performance in real time with minimal overhead. For detailed documentation, refer to the [Wiki](https://github.com/Developer/game-performance-26/wiki).
+This command will start monitoring the performance of your game and output a detailed report upon completion.
 
-![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)
+## License
 
-Feel free to contribute or report any issues through GitHub! Your contributions can help make Game Performance 26 the ultimate tool for developers looking to optimize their games.
+![MIT License](https://img.shields.io/badge/License-MIT-yellow.svg)
+
+Game Performance 26 is licensed under the MIT License, allowing you to freely use, modify, and distribute the software while providing attribution to the original project.
