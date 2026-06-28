@@ -1,24 +1,28 @@
-import sys
-
-class GameInputError(Exception):
-    pass
+import json
 
 def validate_input(user_input):
-    if not user_input.isdigit() or int(user_input) < 0:
-        raise GameInputError('Input must be a non-negative integer')
-    return int(user_input)
+    if isinstance(user_input, str) and len(user_input) > 0:
+        return True
+    return False
 
-def main_loop():
-    while True:
-        user_input = input('Enter a score (or type "exit" to quit): ')
-        if user_input.lower() == 'exit':
-            print('Exiting the game...')
-            sys.exit(0)
-        try:
-            score = validate_input(user_input)
-            print(f'Score accepted: {score}')
-        except GameInputError as e:
-            print(e)
+class GameHandler:
+    def __init__(self):
+        self.players = []
+        
+    def main_loop(self):
+        while True:
+            user_input = input("Enter player name (or 'quit' to exit): ")
+            if user_input.lower() == 'quit':
+                break
+            if validate_input(user_input):
+                self.players.append(user_input)
+                self.process_input(user_input)
+            else:
+                print("Invalid input, try again.")
+
+    def process_input(self, player_name):
+        print(f"Processing player: {player_name}")
 
 if __name__ == '__main__':
-    main_loop()
+    game_handler = GameHandler()
+    game_handler.main_loop()
