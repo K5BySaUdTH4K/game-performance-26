@@ -3,34 +3,36 @@ import logging
 class CustomLogger:
     def __init__(self, name):
         self.logger = logging.getLogger(name)
-        self.logger.setLevel(logging.DEBUG)
+        handler = logging.StreamHandler()
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        ch = logging.StreamHandler()
-        ch.setFormatter(formatter)
-        self.logger.addHandler(ch)
+        handler.setFormatter(formatter)
+        self.logger.addHandler(handler)
+        self.logger.setLevel(logging.DEBUG)
 
-    def debug(self, message):
-        self.logger.debug(message)
+    def debug(self, msg):
+        self._log_with_exception_handling(self.logger.debug, msg)
 
-    def info(self, message):
-        self.logger.info(message)
+    def info(self, msg):
+        self._log_with_exception_handling(self.logger.info, msg)
 
-    def warning(self, message):
-        self.logger.warning(message)
+    def warning(self, msg):
+        self._log_with_exception_handling(self.logger.warning, msg)
 
-    def error(self, message):
-        self.logger.error(message)
+    def error(self, msg):
+        self._log_with_exception_handling(self.logger.error, msg)
 
-    def critical(self, message):
-        self.logger.critical(message)
+    def critical(self, msg):
+        self._log_with_exception_handling(self.logger.critical, msg)
 
-    def set_level(self, level):
-        self.logger.setLevel(level)
-
-# Usage of CustomLogger
-logger = CustomLogger('GamePerformanceLogger')
-logger.info('Logging initialized')
-logger.debug('This is a debug message')
-logger.warning('This is a warning message')
-logger.error('This is an error message')
-logger.critical('This is a critical message')
+    def _log_with_exception_handling(self, log_function, msg):
+        try:
+            log_function(msg)
+        except Exception as e:
+            print(f'Logging error: {e}')
+    
+# Example usage
+if __name__ == '__main__':
+    logger = CustomLogger('MyGameLogger')
+    logger.info('Game started successfully')
+    logger.warning('Low health warning!')
+    logger.error('An error occurred!')
