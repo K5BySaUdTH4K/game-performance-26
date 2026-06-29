@@ -1,38 +1,29 @@
 import logging
 
-class CustomLogger:
-    def __init__(self, name):
+class GameLogger:
+    def __init__(self, name='GameLogger'):
         self.logger = logging.getLogger(name)
-        handler = logging.StreamHandler()
+        self.logger.setLevel(logging.DEBUG)
+        handler = logging.FileHandler('game_log.log')
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         handler.setFormatter(formatter)
         self.logger.addHandler(handler)
-        self.logger.setLevel(logging.DEBUG)
 
-    def debug(self, msg):
-        self._log_with_exception_handling(self.logger.debug, msg)
+    def log_info(self, message):
+        self.logger.info(message)
 
-    def info(self, msg):
-        self._log_with_exception_handling(self.logger.info, msg)
+    def log_warning(self, message):
+        self.logger.warning(message)
 
-    def warning(self, msg):
-        self._log_with_exception_handling(self.logger.warning, msg)
+    def log_error(self, message):
+        self.logger.error(message)
 
-    def error(self, msg):
-        self._log_with_exception_handling(self.logger.error, msg)
+    def log_debug(self, message):
+        self.logger.debug(message)
 
-    def critical(self, msg):
-        self._log_with_exception_handling(self.logger.critical, msg)
-
-    def _log_with_exception_handling(self, log_function, msg):
-        try:
-            log_function(msg)
-        except Exception as e:
-            print(f'Logging error: {e}')
-    
-# Example usage
-if __name__ == '__main__':
-    logger = CustomLogger('MyGameLogger')
-    logger.info('Game started successfully')
-    logger.warning('Low health warning!')
-    logger.error('An error occurred!')
+# Example usage:
+# game_logger = GameLogger()
+# game_logger.log_info('Game started successfully!')
+# game_logger.log_warning('Low health warning!')
+# game_logger.log_error('Game crashed unexpectedly!')
+# game_logger.log_debug('Player position updated to (10, 20)')
