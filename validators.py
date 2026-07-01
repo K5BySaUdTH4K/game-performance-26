@@ -1,31 +1,36 @@
 import re
 
-class Validator:
-    def __init__(self):
-        self.patterns = {
-            'email': r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
-            'username': r'^[a-zA-Z0-9]{3,16}$',
-            'password': r'^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$'
-        }
+class InputValidator:
+    @staticmethod
+    def validate_username(username):
+        pattern = r'^[a-zA-Z0-9_]{3,20}$'
+        if not re.match(pattern, username):
+            raise ValueError('Invalid username. Must be 3-20 characters long and can include letters, numbers, and underscores.')
+        return True
 
-    def validate_email(self, email):
-        if re.match(self.patterns['email'], email):
-            return True
-        raise ValueError('Invalid email format')
+    @staticmethod
+    def validate_email(email):
+        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(pattern, email):
+            raise ValueError('Invalid email format.')
+        return True
 
-    def validate_username(self, username):
-        if re.match(self.patterns['username'], username):
-            return True
-        raise ValueError('Invalid username format')
+    @staticmethod
+    def validate_password(password):
+        if len(password) < 8:
+            raise ValueError('Password must be at least 8 characters long.')
+        if not re.search(r'[A-Z]', password):
+            raise ValueError('Password must contain at least one uppercase letter.')
+        if not re.search(r'[0-9]', password):
+            raise ValueError('Password must contain at least one digit.')
+        return True
 
-    def validate_password(self, password):
-        if re.match(self.patterns['password'], password):
-            return True
-        raise ValueError('Invalid password format')
-
-# Example usage
 if __name__ == '__main__':
-    validator = Validator()
-    print(validator.validate_email('test@example.com'))
-    print(validator.validate_username('user123'))
-    print(validator.validate_password('Password1'))
+    # Example usage
+    try:
+        InputValidator.validate_username('user123')
+        InputValidator.validate_email('user@example.com')
+        InputValidator.validate_password('Password1')
+        print('All validations passed.')
+    except ValueError as e:
+        print(e)
