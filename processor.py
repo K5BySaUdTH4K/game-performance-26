@@ -1,22 +1,31 @@
-import json
-from typing import List, Dict, Any
+import random
+import time
 
-def process_game_data(game_data: List[Dict[str, Any]]) -> str:
-    processed_data = []
-    for game in game_data:
-        processed_entry = {
-            'title': game.get('title', 'Unknown Title'),
-            'platform': game.get('platform', 'Unknown Platform'),
-            'release_year': game.get('release_year', 'N/A'),
-            'rating': game.get('rating', 0),
-            'genre': game.get('genre', 'General')
-        }
-        processed_data.append(processed_entry)
-    return json.dumps(processed_data, indent=4)
+class GameProcessor:
+    def __init__(self, players):
+        self.players = players
+        self.scores = {player: 0 for player in players}
+
+    def roll_dice(self):
+        return random.randint(1, 6)
+
+    def update_score(self, player, points):
+        self.scores[player] += points
+        return self.scores[player]
+
+    def simulate_turn(self, player):
+        roll = self.roll_dice()
+        print(f"{player} rolled a {roll}")
+        self.update_score(player, roll)
+        print(f"{player}'s new score: {self.scores[player]}")
+        return roll
+
+    def game_loop(self, turns):
+        for turn in range(turns):
+            for player in self.players:
+                time.sleep(1)  # Simulate time taken for player to roll
+                self.simulate_turn(player)
 
 if __name__ == '__main__':
-    example_data = [
-        {'title': 'Game A', 'platform': 'PC', 'release_year': 2020, 'rating': 9.5, 'genre': 'Action'},
-        {'title': 'Game B', 'platform': 'Console', 'release_year': 2021, 'rating': 8.0}
-    ]
-    print(process_game_data(example_data))
+    game = GameProcessor(['Alice', 'Bob'])
+    game.game_loop(3)
