@@ -1,24 +1,23 @@
-import random
-import string
+import time
+import requests
 
-def generate_random_string(length=10):
-    return ''.join(random.choices(string.ascii_letters + string.digits, k=length))
+class NetworkError(Exception):
+    pass
 
-def clamp(value, min_value, max_value):
-    return max(min(value, max_value), min_value)
-
-def interpolate(start, end, factor):
-    return start + (end - start) * factor
-
-def calculate_distance(point_a, point_b):
-    return ((point_a[0] - point_b[0]) ** 2 + (point_a[1] - point_b[1]) ** 2) ** 0.5
-
-def shuffle_list(items):
-    shuffled = items.copy()
-    random.shuffle(shuffled)
-    return shuffled
-
-# Function to get a random color in hex
-
-def get_random_color():
-    return '#{0:06X}'.format(random.randint(0, 0xFFFFFF))
+def retry_request(url, method='GET', retries=3, delay=2, **kwargs):
+    for attempt in range(retries):
+        try:
+            if method == 'GET':
+                response = requests.get(url, **kwargs)
+            elif method == 'POST':
+                response = requests.post(url, **kwargs)
+            else:
+                raise ValueError('Unsupported method: {}'.format(method))
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            print(f'Attempt {attempt + 1} failed: {e}')
+            if attempt < retries - 1:
+                time.sleep(delay)
+            else:
+                raise NetworkError(f'All {retries} attempts failed.')
