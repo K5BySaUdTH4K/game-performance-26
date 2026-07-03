@@ -1,28 +1,39 @@
 import json
+import logging
 
-def validate_input(user_input):
-    if isinstance(user_input, str) and len(user_input) > 0:
-        return True
-    return False
+logger = logging.getLogger(__name__)
 
-class GameHandler:
+class GameEventHandler:
     def __init__(self):
-        self.players = []
-        
-    def main_loop(self):
-        while True:
-            user_input = input("Enter player name (or 'quit' to exit): ")
-            if user_input.lower() == 'quit':
-                break
-            if validate_input(user_input):
-                self.players.append(user_input)
-                self.process_input(user_input)
-            else:
-                print("Invalid input, try again.")
+        self.events = []
 
-    def process_input(self, player_name):
-        print(f"Processing player: {player_name}")
+    def add_event(self, event):
+        if self.validate_event(event):
+            self.events.append(event)
+            logger.info(f'Event added: {event}')
+        else:
+            logger.warning('Invalid event tried to add.')
+
+    def validate_event(self, event):
+        required_keys = {'type', 'payload'}
+        is_valid = required_keys.issubset(event.keys())
+        logger.debug(f'Event validation result: {is_valid}')
+        return is_valid
+
+    def process_events(self):
+        for event in self.events:
+            self.handle_event(event)
+        self.events.clear()
+
+    def handle_event(self, event):
+        logger.info(f'Processing event: {json.dumps(event)}')
+        # Imagine complex event processing logic here
+
+    def get_events(self):
+        return self.events
 
 if __name__ == '__main__':
-    game_handler = GameHandler()
-    game_handler.main_loop()
+    handler = GameEventHandler()
+    sample_event = {'type': 'LEVEL_UP', 'payload': {'level': 2}}  
+    handler.add_event(sample_event)
+    handler.process_events()
