@@ -1,27 +1,32 @@
 import json
 import os
 
+DEFAULT_CONFIG = {
+    'screen_width': 1920,
+    'screen_height': 1080,
+    'fullscreen': False,
+    'volume': 0.5,
+    'max_fps': 60,
+}
+
 class ConfigLoader:
-    def __init__(self, default_config_path):
-        self.default_config_path = default_config_path
-        self.config = self.load_defaults()
+    def __init__(self, config_path='config.json'):
+        self.config_path = config_path
+        self.config = self.load_config()
 
-    def load_defaults(self):
-        if not os.path.exists(self.default_config_path):
-            raise FileNotFoundError(f"Default config not found: {self.default_config_path}")
-        with open(self.default_config_path, 'r') as file:
-            return json.load(file)
-
-    def load_user_config(self, user_config_path):
-        if os.path.exists(user_config_path):
-            with open(user_config_path, 'r') as file:
+    def load_config(self):
+        if os.path.exists(self.config_path):
+            with open(self.config_path, 'r') as file:
                 user_config = json.load(file)
-            self.config.update(user_config)
+            return self.merge_configs(DEFAULT_CONFIG, user_config)
+        return DEFAULT_CONFIG
 
-    def get(self, key, default=None):
-        return self.config.get(key, default)
+    def merge_configs(self, default, user):
+        merged = default.copy()
+        merged.update(user)
+        return merged
 
+# Usage Example:
 if __name__ == '__main__':
-    loader = ConfigLoader('default_config.json')
-    loader.load_user_config('user_config.json')
-    print(loader.config)
+    config_loader = ConfigLoader()
+    print(config_loader.config)
