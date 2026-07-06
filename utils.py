@@ -1,37 +1,30 @@
-import time
-import random
+import json
 
-class NetworkError(Exception):
-    pass
+class GameDataHandler:
+    def __init__(self, filepath):
+        self.filepath = filepath
 
+    def load_data(self):
+        try:
+            with open(self.filepath, 'r') as file:
+                data = json.load(file)
+            return data
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            print(f'Error loading data: {e}')
+            return None
 
-def retry(max_attempts=3, delay=2, backoff=2):
-    def decorator(func):
-        def wrapper(*args, **kwargs):
-            attempts = 0
-            while attempts < max_attempts:
-                try:
-                    return func(*args, **kwargs)
-                except NetworkError:
-                    attempts += 1
-                    wait_time = delay * (backoff ** (attempts - 1))
-                    print(f'Attempt {attempts} failed. Retrying in {wait_time} seconds...')
-                    time.sleep(wait_time)
-                    if attempts == max_attempts:
-                        print('Max attempts reached. Operation failed.')
-                        raise
-        return wrapper
-    return decorator
+    def save_data(self, data):
+        try:
+            with open(self.filepath, 'w') as file:
+                json.dump(data, file, indent=4)
+            print('Data saved successfully.')
+        except IOError as e:
+            print(f'Error saving data: {e}')
 
-@retry(max_attempts=5, delay=1)
-def network_operation():
-    if random.random() < 0.7:
-        raise NetworkError('Network failure!')
-    return 'Success!'
-
-if __name__ == '__main__':
-    try:
-        result = network_operation()
-        print(result)
-    except NetworkError:
-        print('Final failure. All retries exhausted.')
+    def update_data(self, key, value):
+        data = self.load_data()
+        if data is not None:
+            data[key] = value
+            self.save_data(data)
+        else:
+            print('No data to update.')
