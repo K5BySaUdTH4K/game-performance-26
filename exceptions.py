@@ -1,23 +1,29 @@
-class GameException(Exception):
-    """Base class for all game exceptions."""
-    def __init__(self, message, code=None):
+class GameError(Exception):
+    """Base class for exceptions in the game."""
+    pass
+
+class ConnectionError(GameError):
+    """Raised when the game connection fails."""
+    def __init__(self, message: str) -> None:
         super().__init__(message)
-        self.code = code
 
-class PlayerNotFoundException(GameException):
-    """Raised when a player is not found."""
-    def __init__(self, player_id):
-        message = f"Player with ID {player_id} not found"
-        super().__init__(message, code=404)
+class InvalidMoveError(GameError):
+    """Raised when an invalid move is attempted."""
+    def __init__(self, move: str) -> None:
+        self.move = move
+        message = f"Invalid move: {move}"  
+        super().__init__(message)
 
-class InsufficientResourcesException(GameException):
-    """Raised when a player has insufficient resources."""
-    def __init__(self, resource, required, available):
-        message = f"Insufficient {resource}: required {required}, available {available}"
-        super().__init__(message, code=403)
+class PlayerNotFoundError(GameError):
+    """Raised when a player is not found in the game."""
+    def __init__(self, player_id: int) -> None:
+        self.player_id = player_id
+        message = f"Player with ID {player_id} not found."  
+        super().__init__(message)
 
-class LevelUpException(GameException):
-    """Raised when a player cannot level up."""
-    def __init__(self, player_id, level):
-        message = f"Player {player_id} cannot level up to level {level}"
-        super().__init__(message, code=400)
+# Example use case
+if __name__ == '__main__':
+    try:
+        raise InvalidMoveError('jump')
+    except InvalidMoveError as e:
+        print(e)
