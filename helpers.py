@@ -1,23 +1,36 @@
-import time
-import requests
+import random
+import math
 
-class NetworkError(Exception):
-    pass
+def random_position(max_x, max_y):
+    return random.randint(0, max_x), random.randint(0, max_y)
 
-def retry_request(url, method='GET', retries=3, delay=2, **kwargs):
-    for attempt in range(retries):
-        try:
-            if method == 'GET':
-                response = requests.get(url, **kwargs)
-            elif method == 'POST':
-                response = requests.post(url, **kwargs)
-            else:
-                raise ValueError('Unsupported method: {}'.format(method))
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.RequestException as e:
-            print(f'Attempt {attempt + 1} failed: {e}')
-            if attempt < retries - 1:
-                time.sleep(delay)
-            else:
-                raise NetworkError(f'All {retries} attempts failed.')
+
+def distance(point1, point2):
+    return math.sqrt((point2[0] - point1[0]) ** 2 + (point2[1] - point1[1]) ** 2)
+
+
+def clamp(value, min_value, max_value):
+    return max(min(value, max_value), min_value)
+
+
+def lerp(start, end, t):
+    return start + (end - start) * t
+
+
+def shuffle_list(input_list):
+    shuffled = input_list[:]
+    random.shuffle(shuffled)
+    return shuffled
+
+
+def interpolate_color(color1, color2, t):
+    return (
+        int(lerp(color1[0], color2[0], t)),
+        int(lerp(color1[1], color2[1], t)),
+        int(lerp(color1[2], color2[2], t))
+    )
+
+
+def create_grid(rows, cols):
+    return [[(x, y) for x in range(cols)] for y in range(rows)]
+
