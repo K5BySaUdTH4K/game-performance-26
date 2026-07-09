@@ -1,29 +1,26 @@
+import time
 import numpy as np
 
-class Game:
-    def __init__(self, width, height):
-        self.width = width
-        self.height = height
-        self.grid = np.zeros((height, width))
-        self.player_position = (height // 2, width // 2)
+def optimized_game_logic(game_state):
+    start_time = time.time()
+    next_positions = np.empty_like(game_state['positions'])
+    for i, pos in enumerate(game_state['positions']):
+        next_positions[i] = calculate_next_position(pos, game_state['velocities'][i])
+    game_state['positions'] = next_positions
+    elapsed_time = time.time() - start_time
+    print(f"Optimized loop executed in {elapsed_time:.6f} seconds")
 
-    def move_player(self, direction):
-        y, x = self.player_position
-        movements = {'up': (-1, 0), 'down': (1, 0), 'left': (0, -1), 'right': (0, 1)}
-        if direction in movements:
-            dy, dx = movements[direction]
-            new_y, new_x = y + dy, x + dx
-            if 0 <= new_y < self.height and 0 <= new_x < self.width:
-                self.player_position = (new_y, new_x)
-                return True
-        return False
 
-    def render(self):
-        grid_copy = self.grid.copy()
-        y, x = self.player_position
-        grid_copy[y, x] = 1  # Representing player
-        print(grid_copy)
+def calculate_next_position(position, velocity):
+    new_position = position + velocity
+    return new_position
 
-    def reset(self):
-        self.grid.fill(0)
-        self.player_position = (self.height // 2, self.width // 2)
+
+def main_loop():
+    game_state = {'positions': np.array([[0, 0], [1, 1], [2, 2]]), 'velocities': np.array([[0.1, 0.1], [0.2, 0.2], [0.3, 0.3]])}
+    while True:
+        optimized_game_logic(game_state)
+        time.sleep(0.1)  # Simulate frame delay
+
+if __name__ == '__main__':
+    main_loop()
