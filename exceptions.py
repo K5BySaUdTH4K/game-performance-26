@@ -1,29 +1,31 @@
 class GameError(Exception):
-    """Base class for exceptions in the game."""
-    pass
+    """
+    Custom exception for game-related errors.
+    """
+    def __init__(self, message: str, code: int = 500) -> None:
+        super().__init__(message)
+        self.code = code
+
+class InvalidInputError(GameError):
+    """
+    Exception raised for invalid inputs in the game.
+    """
+    def __init__(self, input_value: str) -> None:
+        message = f'Invalid input: {input_value}'
+        super().__init__(message, code=400)
 
 class ConnectionError(GameError):
-    """Raised when the game connection fails."""
-    def __init__(self, message: str) -> None:
-        super().__init__(message)
+    """
+    Exception raised for connection issues.
+    """
+    def __init__(self, details: str) -> None:
+        message = f'Connection error: {details}'
+        super().__init__(message, code=503)
 
-class InvalidMoveError(GameError):
-    """Raised when an invalid move is attempted."""
-    def __init__(self, move: str) -> None:
-        self.move = move
-        message = f"Invalid move: {move}"  
-        super().__init__(message)
-
-class PlayerNotFoundError(GameError):
-    """Raised when a player is not found in the game."""
-    def __init__(self, player_id: int) -> None:
-        self.player_id = player_id
-        message = f"Player with ID {player_id} not found."  
-        super().__init__(message)
-
-# Example use case
-if __name__ == '__main__':
-    try:
-        raise InvalidMoveError('jump')
-    except InvalidMoveError as e:
-        print(e)
+class ResourceNotFoundError(GameError):
+    """
+    Exception raised when a resource is not found.
+    """
+    def __init__(self, resource_name: str) -> None:
+        message = f'Resource not found: {resource_name}'
+        super().__init__(message, code=404)
