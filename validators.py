@@ -1,24 +1,28 @@
 import re
 
-def is_valid_username(username):
-    return bool(re.match('^[a-zA-Z0-9_]{3,16}$', username))
+def validate_email(email):
+    pattern = r'^[\w\.-]+@[\w\.-]+\.\w+$'
+    return bool(re.match(pattern, email))
 
-def is_valid_email(email):
-    return bool(re.match('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email))
 
-def is_valid_password(password):
+def validate_username(username):
+    if len(username) < 3 or len(username) > 20:
+        return False
+    if not username.isalnum():
+        return False
+    return True
+
+
+def validate_password(password):
     return (len(password) >= 8 and 
-            any(char.isdigit() for char in password) and 
-            any(char.islower() for char in password) and 
-            any(char.isupper() for char in password) and 
-            any(char in '!@#$%^&*()-_=+[]{}|;:,.<>?/' for char in password))
+            any(c.isdigit() for c in password) and 
+            any(c.islower() for c in password) and 
+            any(c.isupper() for c in password))
 
-def is_valid_score(score):
-    return isinstance(score, (int, float)) and 0 <= score <= 100
 
-if __name__ == '__main__':
-    print(is_valid_username('Player_1'))  # True
-    print(is_valid_email('user@example.com'))  # True
-    print(is_valid_password('Passw0rd!'))  # True
-    print(is_valid_score(85))  # True
-    print(is_valid_score(-10))  # False
+def validate_game_score(score):
+    return isinstance(score, int) and score >= 0
+
+
+def validate_file_extension(filename, allowed_extensions):
+    return filename.lower().endswith(tuple(allowed_extensions))
