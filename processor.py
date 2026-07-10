@@ -1,31 +1,27 @@
-import random
-import time
+def process_game_data(game_data):
+    processed_data = []
+    for item in game_data:
+        processed_item = {
+            'name': item['name'],
+            'score': item['score'],
+            'level': item.get('level', 1),
+        }
+        processed_data.append(processed_item)
+    return processed_data
 
-class GameProcessor:
-    def __init__(self, players):
-        self.players = players
-        self.scores = {player: 0 for player in players}
 
-    def roll_dice(self):
-        return random.randint(1, 6)
+def calculate_average_score(game_data):
+    total_score = sum(item['score'] for item in game_data)
+    average_score = total_score / len(game_data) if game_data else 0
+    return average_score
 
-    def update_score(self, player, points):
-        self.scores[player] += points
-        return self.scores[player]
 
-    def simulate_turn(self, player):
-        roll = self.roll_dice()
-        print(f"{player} rolled a {roll}")
-        self.update_score(player, roll)
-        print(f"{player}'s new score: {self.scores[player]}")
-        return roll
+def filter_high_scores(game_data, threshold):
+    return [item for item in game_data if item['score'] > threshold]
 
-    def game_loop(self, turns):
-        for turn in range(turns):
-            for player in self.players:
-                time.sleep(1)  # Simulate time taken for player to roll
-                self.simulate_turn(player)
 
-if __name__ == '__main__':
-    game = GameProcessor(['Alice', 'Bob'])
-    game.game_loop(3)
+def format_scoreboard(processed_data):
+    scoreboard = "Scoreboard:\n"
+    for item in processed_data:
+        scoreboard += f"{item['name']} - Level: {item['level']}, Score: {item['score']}\n"
+    return scoreboard
