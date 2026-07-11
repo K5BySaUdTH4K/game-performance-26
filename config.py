@@ -1,39 +1,32 @@
 import json
-import os
+from pathlib import Path
 
-DEFAULT_CONFIG = {
-    'screen_width': 800,
-    'screen_height': 600,
-    'fullscreen': False,
-    'volume': 0.5,
-    'language': 'en'
-}
+def load_config(config_file, default_file='default_config.json'):
+    config_path = Path(config_file)
+    default_path = Path(default_file)
+    
+    if not config_path.is_file():
+        print(f'Custom config not found, loading defaults from {default_file}')
+        return load_json(default_path)
+    
+    return load_json(config_path)
 
-class ConfigLoader:
-    def __init__(self, config_file='config.json'):
-        self.config_file = config_file
-        self.config = DEFAULT_CONFIG.copy()
-        self.load_config()
 
-    def load_config(self):
-        if os.path.exists(self.config_file):
-            with open(self.config_file, 'r') as file:
-                file_config = json.load(file)
-                self.config.update(file_config)
+def load_json(filepath):
+    with open(filepath, 'r') as file:
+        return json.load(file)
 
-    def get(self, key):
-        return self.config.get(key, DEFAULT_CONFIG[key])
 
-    def set(self, key, value):
-        self.config[key] = value
-        self.save_config()
+def save_config(config, config_file):
+    with open(config_file, 'w') as file:
+        json.dump(config, file, indent=4)
 
-    def save_config(self):
-        with open(self.config_file, 'w') as file:
-            json.dump(self.config, file, indent=4)
 
-# Example usage:
+def merge_configs(custom_config, default_config):
+    merged = default_config.copy()
+    merged.update(custom_config)
+    return merged
+
 if __name__ == '__main__':
-    loader = ConfigLoader()
-    print(loader.get('fullscreen'))
-    loader.set('volume', 0.8)
+    merged_config = merge_configs(load_config('custom_config.json'), load_config('default_config.json'))
+    print(json.dumps(merged_config, indent=4))
