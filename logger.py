@@ -1,31 +1,18 @@
 import logging
+from logging.handlers import RotatingFileHandler
 
-class CustomLogger:
-    def __init__(self, name):
-        self.logger = logging.getLogger(name)
-        self.logger.setLevel(logging.DEBUG)
-        handler = logging.StreamHandler()
-        handler.setLevel(logging.DEBUG)
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        handler.setFormatter(formatter)
-        self.logger.addHandler(handler)
+def setup_logger(name, log_file, max_bytes=5*1024*1024, backup_count=2):
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    handler = RotatingFileHandler(log_file, maxBytes=max_bytes, backupCount=backup_count)
+    handler.setFormatter(formatter)    
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
+    logger.addHandler(handler)
+    return logger
 
-    def debug(self, msg):
-        self.logger.debug(msg)
-    
-    def info(self, msg):
-        self.logger.info(msg)
-    
-    def warning(self, msg):
-        self.logger.warning(msg)
-    
-    def error(self, msg):
-        self.logger.error(msg)
-    
-    def critical(self, msg):
-        self.logger.critical(msg)
-    
-# Example usage of the logger
 if __name__ == '__main__':
-    log = CustomLogger('GamePerformanceLogger')
-    log.info('Performance optimization check initiated.')
+    logger = setup_logger('game_logger', 'game.log')
+    logger.info('Game started')
+    for i in range(100):
+        logger.debug(f'Game loop iteration {i}')
+    logger.warning('Game ended')
