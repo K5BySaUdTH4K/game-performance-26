@@ -1,27 +1,37 @@
-def process_game_data(game_data):
-    processed_data = []
-    for item in game_data:
-        processed_item = {
-            'name': item['name'],
-            'score': item['score'],
-            'level': item.get('level', 1),
-        }
-        processed_data.append(processed_item)
-    return processed_data
+from typing import List, Dict, Any
 
 
-def calculate_average_score(game_data):
-    total_score = sum(item['score'] for item in game_data)
-    average_score = total_score / len(game_data) if game_data else 0
-    return average_score
+def process_game_data(game_data: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Processes a list of game data dictionaries and aggregates statistics.
+
+    Args:
+        game_data (List[Dict[str, Any]]): A list of game data containing various metrics.
+
+    Returns:
+        Dict[str, Any]: A dictionary with aggregated statistics like total score and average level.
+    """
+    total_score = sum(item.get('score', 0) for item in game_data)
+    total_level = sum(item.get('level', 0) for item in game_data)
+    count = len(game_data)
+
+    average_level = total_level / count if count > 0 else 0
+    aggregated_data = {
+        'total_score': total_score,
+        'average_level': average_level,
+        'game_count': count,
+    }
+    return aggregated_data
 
 
-def filter_high_scores(game_data, threshold):
-    return [item for item in game_data if item['score'] > threshold]
+def display_statistics(stats: Dict[str, Any]) -> None:
+    """
+    Displays the game statistics in a formatted manner.
 
-
-def format_scoreboard(processed_data):
-    scoreboard = "Scoreboard:\n"
-    for item in processed_data:
-        scoreboard += f"{item['name']} - Level: {item['level']}, Score: {item['score']}\n"
-    return scoreboard
+    Args:
+        stats (Dict[str, Any]): A dictionary containing game statistics to display.
+    """
+    print("Game Statistics:")
+    print(f"Total Score: {stats['total_score']}")
+    print(f"Average Level: {stats['average_level']:.2f}")
+    print(f"Total Games Processed: {stats['game_count']}")
