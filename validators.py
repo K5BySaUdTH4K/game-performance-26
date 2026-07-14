@@ -1,28 +1,30 @@
 import re
 
-def validate_email(email):
-    pattern = r'^[\w\.-]+@[\w\.-]+\.\w+$'
-    return bool(re.match(pattern, email))
-
-
-def validate_username(username):
-    if len(username) < 3 or len(username) > 20:
-        return False
-    if not username.isalnum():
-        return False
+def validate_input(user_input):
+    if not isinstance(user_input, str):
+        raise ValueError('Input must be a string')
+    
+    if len(user_input) == 0:
+        raise ValueError('Input cannot be empty')
+    
+    if not re.match('^[a-zA-Z0-9_ ]*$', user_input):
+        raise ValueError('Input contains invalid characters')
+    
     return True
 
 
-def validate_password(password):
-    return (len(password) >= 8 and 
-            any(c.isdigit() for c in password) and 
-            any(c.islower() for c in password) and 
-            any(c.isupper() for c in password))
+def main_loop():
+    while True:
+        user_input = input('Enter command: ')
+        try:
+            validate_input(user_input)
+            process_input(user_input)
+        except ValueError as e:
+            print(f'Error: {e}')  
 
 
-def validate_game_score(score):
-    return isinstance(score, int) and score >= 0
+def process_input(command):
+    print(f'Processing: {command}')
 
-
-def validate_file_extension(filename, allowed_extensions):
-    return filename.lower().endswith(tuple(allowed_extensions))
+if __name__ == '__main__':
+    main_loop()
