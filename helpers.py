@@ -1,36 +1,26 @@
-import random
-import math
+import time
+import requests
 
-def random_position(max_x, max_y):
-    return random.randint(0, max_x), random.randint(0, max_y)
+class NetworkError(Exception):
+    pass
 
+def retry_on_failure(max_retries=3, delay=2):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            for attempt in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except (requests.ConnectionError, requests.Timeout) as e:
+                    if attempt < max_retries - 1:
+                        print(f'Attempt {attempt + 1} failed: {e}. Retrying in {delay}s...')
+                        time.sleep(delay)
+                    else:
+                        raise NetworkError(f'Operation failed after {max_retries} attempts.') from e
+        return wrapper
+    return decorator
 
-def distance(point1, point2):
-    return math.sqrt((point2[0] - point1[0]) ** 2 + (point2[1] - point1[1]) ** 2)
-
-
-def clamp(value, min_value, max_value):
-    return max(min(value, max_value), min_value)
-
-
-def lerp(start, end, t):
-    return start + (end - start) * t
-
-
-def shuffle_list(input_list):
-    shuffled = input_list[:]
-    random.shuffle(shuffled)
-    return shuffled
-
-
-def interpolate_color(color1, color2, t):
-    return (
-        int(lerp(color1[0], color2[0], t)),
-        int(lerp(color1[1], color2[1], t)),
-        int(lerp(color1[2], color2[2], t))
-    )
-
-
-def create_grid(rows, cols):
-    return [[(x, y) for x in range(cols)] for y in range(rows)]
-
+@retry_on_failure(max_retries=5, delay=3)
+def fetch_data(url):
+    response = requests.get(url)
+    response.raise_for_status()
+    return response.json()
