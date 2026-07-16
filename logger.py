@@ -1,21 +1,23 @@
 import logging
-from logging.handlers import RotatingFileHandler
 import os
+from logging.handlers import RotatingFileHandler
 
-def setup_logger(name, log_file, level=logging.INFO):
-    handler = RotatingFileHandler(log_file, maxBytes=5 * 1024 * 1024, backupCount=5)
+def setup_logger(log_file='game.log', max_bytes=5*1024*1024, backup_count=3):
+    if not os.path.exists('logs'):
+        os.makedirs('logs')
+    logger = logging.getLogger('GameLogger')
+    logger.setLevel(logging.DEBUG)  
+    handler = RotatingFileHandler(os.path.join('logs', log_file), maxBytes=max_bytes, backupCount=backup_count)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
-    logger = logging.getLogger(name)
-    logger.setLevel(level)
     logger.addHandler(handler)
     return logger
 
+# Example Usage
 if __name__ == '__main__':
-    log_dir = 'logs'
-    if not os.path.exists(log_dir):
-        os.makedirs(log_dir)
-    logger = setup_logger('game_logger', os.path.join(log_dir, 'game.log'))
-    logger.info('Logger has been set up successfully.')
-    logger.warning('Warning message for testing rotation.')
-    logger.error('Error message for testing purposes.')
+    log = setup_logger()
+    log.info('Logger is set up and ready!')
+    log.debug('This is a debug message.')
+    log.warning('This is a warning message.')
+    log.error('This is an error message.')
+    log.critical('This is a critical message.')
