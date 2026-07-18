@@ -1,25 +1,27 @@
 class GameError(Exception):
-    """Base class for exceptions in the game."""
+    """
+    Custom exception for game-related errors.
+    """
     pass
 
-class PlayerNotFoundError(GameError):
-    """Raised when a player is not found."""
-    def __init__(self, player_id):
-        super().__init__(f'Player with id {player_id} not found.')
-        self.player_id = player_id
-
 class InvalidMoveError(GameError):
-    """Raised when a move is invalid."""
-    def __init__(self, move):
-        super().__init__(f'Invalid move attempted: {move}.')
-        self.move = move
+    """
+    Exception raised for invalid moves in the game.
+    """
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+
+class OutOfBoundsError(InvalidMoveError):
+    """
+    Exception raised when a move is out of game bounds.
+    """
+    def __init__(self, x: int, y: int) -> None:
+        message = f'Move to ({x}, {y}) is out of bounds.'
+        super().__init__(message)
 
 class GameNotStartedError(GameError):
-    """Raised when an operation is attempted before the game starts."""
-    def __init__(self):
-        super().__init__('The game has not started yet.')
-
-class GameAlreadyStartedError(GameError):
-    """Raised when attempting to start an already started game."""
-    def __init__(self):
-        super().__init__('The game is already in progress.')
+    """
+    Exception raised when an action is attempted before the game starts.
+    """
+    def __init__(self, message: str = 'Game has not started yet.') -> None:
+        super().__init__(message)
