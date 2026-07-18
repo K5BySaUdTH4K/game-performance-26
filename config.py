@@ -1,18 +1,27 @@
 import json
-from pathlib import Path
+import os
 
-def load_config(file_path='config.json', defaults=None):
-    defaults = defaults or {}  # Fallback to empty dict if none provided
-    config_path = Path(file_path)
-    if not config_path.is_file():
-        return defaults
-    try:
-        with open(config_path, 'r') as config_file:
-            config = json.load(config_file)
-        return {**defaults, **config}  # Merge defaults with loaded config
-    except json.JSONDecodeError:
-        raise ValueError('Invalid JSON in config file')
+class ConfigLoader:
+    def __init__(self, default_config_path, user_config_path):
+        self.default_config = self.load_config(default_config_path)
+        self.user_config = self.load_config(user_config_path)
+        self.final_config = self.merge_configs(self.default_config, self.user_config)
 
+    def load_config(self, path):
+        if not os.path.exists(path):
+            return {}
+        with open(path, 'r') as f:
+            return json.load(f)
+
+    def merge_configs(self, defaults, user):
+        config = defaults.copy()  # Start with default values
+        config.update(user)  # Override them with user values
+        return config
+
+    def get_config(self):
+        return self.final_config
+
+# Example usage:
 if __name__ == '__main__':
-    config = load_config()  # Example loading
-    print(config)  # Print loaded config for verification
+    loader = ConfigLoader('default_config.json', 'user_config.json')
+    print(loader.get_config())
