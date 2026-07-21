@@ -1,28 +1,39 @@
 import random
-import math
 
-def calculate_distance(point1, point2):
-    return math.sqrt((point2[0] - point1[0]) ** 2 + (point2[1] - point1[1]) ** 2)
+def random_position(max_x, max_y):
+    return random.randint(0, max_x), random.randint(0, max_y)
 
 
-def spawn_random_location(bounds):
-    x = random.uniform(bounds['x_min'], bounds['x_max'])
-    y = random.uniform(bounds['y_min'], bounds['y_max'])
-    return (x, y)
+def distance(point1, point2):
+    return ((point2[0] - point1[0]) ** 2 + (point2[1] - point1[1]) ** 2) ** 0.5
+
+
+def load_game_data(file_path):
+    with open(file_path, 'r') as file:
+        return file.read()
+
+
+def save_game_data(file_path, data):
+    with open(file_path, 'w') as file:
+        file.write(data)
+
+
+def shuffle_list(items):
+    random.shuffle(items)
+    return items
 
 
 def clamp(value, min_value, max_value):
-    return max(min_value, min(max_value, value))
+    return max(min_value, min(value, max_value))
 
 
-def linear_interpolate(start, end, t):
-    return (1 - t) * start + t * end
+def interpolate(value1, value2, factor):
+    return value1 + (value2 - value1) * factor
 
 
-def random_choice(choices):
-    return random.choice(choices)
+def apply_damage(health, damage):
+    return max(0, health - damage)
 
 
 def is_within_bounds(point, bounds):
-    return (bounds['x_min'] <= point[0] <= bounds['x_max'] and
-            bounds['y_min'] <= point[1] <= bounds['y_max'])
+    return bounds[0][0] <= point[0] <= bounds[1][0] and bounds[0][1] <= point[1] <= bounds[1][1]
