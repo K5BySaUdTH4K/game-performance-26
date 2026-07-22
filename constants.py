@@ -1,35 +1,42 @@
-FPS_LIMIT = 60
+import math
 
-# Game resolution constants
+# Constants for game performance optimization
+FRAME_RATE = 60
+MAX_FPS = 120
+MIN_FPS = 30
+
+# Graphics settings
 SCREEN_WIDTH = 1920
 SCREEN_HEIGHT = 1080
+FULLSCREEN_MODE = False
 
-# Color constants in RGB
-BLACK = (0, 0, 0)
-WHITE = (255, 255, 255)
-RED = (255, 0, 0)
-GREEN = (0, 255, 0)
-BLUE = (0, 0, 255)
+# Physics constants
+GRAVITY = 9.8
+TERMINAL_VELOCITY = 53.0
 
-# Player constants
-PLAYER_SPEED = 5
-PLAYER_JUMP_HEIGHT = 10
+# Animation constants
+ANIMATION_FPS = 30
+FRAME_DURATION = 1.0 / FRAME_RATE
 
-# Game physics constants
-GRAVITY = 9.81
-FRICTION = 0.1
+# Load values that don't change
+def load_constants():
+    return {
+        'frame_rate': FRAME_RATE,
+        'max_fps': MAX_FPS,
+        'min_fps': MIN_FPS,
+        'screen_width': SCREEN_WIDTH,
+        'screen_height': SCREEN_HEIGHT,
+        'gravity': GRAVITY,
+    }
 
-# Sound constants
-MUSIC_VOLUME = 0.5
-SFX_VOLUME = 0.7
+# Caching for improved constant access
+CONSTANTS_CACHE = load_constants()
 
-# Timing constants
-FRAME_TIME = 1 / FPS_LIMIT
-MIN_FRAME_TIME = 0.001
+# Function to retrieve constants
+def get_constant(key):
+    return CONSTANTS_CACHE.get(key, None)
 
-# Prefetching thresholds
-DATA_PREFETCH_THRESHOLD = 2
-
-# Spawn point offsets
-def spawn_offset(forward=True):
-    return (0, PLAYER_JUMP_HEIGHT) if forward else (0, -PLAYER_JUMP_HEIGHT)
+# Function to refresh constants if needed
+def refresh_constants():
+    global CONSTANTS_CACHE
+    CONSTANTS_CACHE = load_constants()
