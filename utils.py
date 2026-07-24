@@ -1,29 +1,29 @@
-import time
 import random
-import requests
+import math
 
-def retry_on_failure(max_retries=3, delay=2):
-    def decorator(func):
-        def wrapper(*args, **kwargs):
-            attempts = 0
-            while attempts < max_retries:
-                try:
-                    return func(*args, **kwargs)
-                except requests.exceptions.RequestException as e:
-                    attempts += 1
-                    print(f'Attempt {attempts} failed: {e}')
-                    time.sleep(delay + random.uniform(0, 1))  # Exponential backoff
-            print('Max retries reached. Giving up.')
-            return None
-        return wrapper
-    return decorator
+def generate_random_position(max_x, max_y):
+    return (random.randint(0, max_x), random.randint(0, max_y))
 
-@retry_on_failure(max_retries=5, delay=1)
-def fetch_data(url):
-    response = requests.get(url)
-    response.raise_for_status()  # Raises an error for 4xx/5xx response
-    return response.json()
 
-if __name__ == '__main__':
-    data = fetch_data('https://api.example.com/data')
-    print(data)  
+def distance_between_points(point1, point2):
+    return math.sqrt((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2)
+
+
+def clamp(value, min_value, max_value):
+    return max(min_value, min(value, max_value))
+
+
+def interpolate(start, end, alpha):
+    return start + (end - start) * alpha
+
+
+def is_point_within_bounds(point, bounds):
+    return bounds[0][0] <= point[0] <= bounds[1][0] and bounds[0][1] <= point[1] <= bounds[1][1]
+
+
+def random_choice_from_list(items):
+    return random.choice(items)
+
+
+def calculate_angle(point1, point2):
+    return math.degrees(math.atan2(point2[1] - point1[1], point2[0] - point1[0]))
