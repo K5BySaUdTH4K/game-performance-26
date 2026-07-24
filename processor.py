@@ -1,37 +1,31 @@
 import time
 import random
 
-class NetworkError(Exception):
-    pass
+def compute_intensive_task(data):
+    return sum(x**2 for x in data)
 
-def mock_network_call():
-    if random.choice([True, False]):
-        raise NetworkError("Network failure occurred.")
-    return "Network operation successful."
+class GameProcessor:
+    def __init__(self, data):
+        self.data = data
+        self.results = []
 
-def retry_with_backoff(retries, backoff_factor):
-    def decorator(func):
-        def wrapper(*args, **kwargs):
-            attempt = 0
-            while attempt < retries:
-                try:
-                    return func(*args, **kwargs)
-                except NetworkError as e:
-                    attempt += 1
-                    delay = backoff_factor * (2 ** (attempt - 1))
-                    print(f"Attempt {attempt} failed: {e}. Retrying in {delay} seconds.")
-                    time.sleep(delay)
-            raise NetworkError("All retries failed.")
-        return wrapper
-    return decorator
+    def run(self):
+        start_time = time.time()
+        print('Starting computation...')
+        self.results = [self.enhanced_compute(chunk) for chunk in self.chunk_data()]
+        end_time = time.time()
+        print(f'Computation completed in {end_time - start_time:.2f} seconds')
 
-@retry_with_backoff(retries=5, backoff_factor=1)
-def perform_network_operation():
-    return mock_network_call()
+    def enhanced_compute(self, chunk):
+        # Using list comprehension for efficiency
+        return compute_intensive_task(chunk)
+
+    def chunk_data(self):
+        chunk_size = 1000  # Define chunk size
+        for i in range(0, len(self.data), chunk_size):
+            yield self.data[i:i + chunk_size]
 
 if __name__ == '__main__':
-    try:
-        result = perform_network_operation()
-        print(result)
-    except NetworkError as e:
-        print(f"Final error after retries: {e}")
+    data = [random.randint(1, 100) for _ in range(10000)]
+    processor = GameProcessor(data)
+    processor.run()
