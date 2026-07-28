@@ -1,29 +1,37 @@
 import random
-import math
+import numpy as np
 
-def generate_random_position(max_x, max_y):
-    return (random.randint(0, max_x), random.randint(0, max_y))
-
-
-def distance_between_points(point1, point2):
-    return math.sqrt((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2)
+def generate_random_number(min_value, max_value):
+    return random.randint(min_value, max_value)
 
 
-def clamp(value, min_value, max_value):
-    return max(min_value, min(value, max_value))
+def shuffle_list(input_list):
+    shuffled = input_list.copy()
+    random.shuffle(shuffled)
+    return shuffled
 
 
-def interpolate(start, end, alpha):
-    return start + (end - start) * alpha
+def calculate_average(numbers):
+    if not numbers:
+        raise ValueError('List of numbers cannot be empty')
+    return sum(numbers) / len(numbers)
 
 
-def is_point_within_bounds(point, bounds):
-    return bounds[0][0] <= point[0] <= bounds[1][0] and bounds[0][1] <= point[1] <= bounds[1][1]
+def normalize_data(data):
+    if not data:
+        raise ValueError('Data cannot be empty')
+    mean = np.mean(data)
+    std_dev = np.std(data)
+    return [(x - mean) / std_dev for x in data]
 
 
-def random_choice_from_list(items):
-    return random.choice(items)
+def load_json_file(filepath):
+    import json
+    with open(filepath, 'r') as file:
+        return json.load(file)
 
 
-def calculate_angle(point1, point2):
-    return math.degrees(math.atan2(point2[1] - point1[1], point2[0] - point1[0]))
+def save_json_file(filepath, data):
+    import json
+    with open(filepath, 'w') as file:
+        json.dump(data, file, indent=4)
