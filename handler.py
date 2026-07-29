@@ -1,39 +1,33 @@
-import json
-import logging
+import time
+import random
 
-logger = logging.getLogger(__name__)
-
-class GameEventHandler:
+class GameHandler:
     def __init__(self):
-        self.events = []
+        self.players = {}
 
-    def add_event(self, event):
-        if self.validate_event(event):
-            self.events.append(event)
-            logger.info(f'Event added: {event}')
-        else:
-            logger.warning('Invalid event tried to add.')
+    def add_player(self, player_id):
+        if player_id not in self.players:
+            self.players[player_id] = {'score': 0, 'last_action_time': time.time()}
 
-    def validate_event(self, event):
-        required_keys = {'type', 'payload'}
-        is_valid = required_keys.issubset(event.keys())
-        logger.debug(f'Event validation result: {is_valid}')
-        return is_valid
+    def update_score(self, player_id, score):
+        if player_id in self.players:
+            current_time = time.time()
+            time_since_last_action = current_time - self.players[player_id]['last_action_time']
+            if time_since_last_action >= 0.1:
+                self.players[player_id]['score'] += score
+                self.players[player_id]['last_action_time'] = current_time
 
-    def process_events(self):
-        for event in self.events:
-            self.handle_event(event)
-        self.events.clear()
+    def get_scores(self):
+        return {id: data['score'] for id, data in self.players.items()}
 
-    def handle_event(self, event):
-        logger.info(f'Processing event: {json.dumps(event)}')
-        # Imagine complex event processing logic here
-
-    def get_events(self):
-        return self.events
+    def simulate_gameplay(self):
+        for player_id in self.players:
+            action_score = random.randint(1, 10)
+            self.update_score(player_id, action_score)
 
 if __name__ == '__main__':
-    handler = GameEventHandler()
-    sample_event = {'type': 'LEVEL_UP', 'payload': {'level': 2}}  
-    handler.add_event(sample_event)
-    handler.process_events()
+    game = GameHandler()
+    game.add_player('player1')
+    for _ in range(100):
+        game.simulate_gameplay()
+    print(game.get_scores())
