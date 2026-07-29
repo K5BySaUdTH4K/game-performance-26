@@ -1,40 +1,40 @@
-import json
-import os
+from typing import Dict, Any
 
-class ConfigError(Exception):
-    pass
+class GameConfig:
+    """Class to load and hold game configuration settings."""
+    
+    def __init__(self, config: Dict[str, Any]) -> None:
+        """Initializes game configuration with the provided settings.
+        
+        Args:
+            config (Dict[str, Any]): A dictionary containing configuration settings.
+        """
+        self.settings = config
 
-class Config:
-    def __init__(self, config_file):
-        self.config_file = config_file
-        self.config_data = {}
-        self.load_config()
+    def get_setting(self, key: str) -> Any:
+        """Retrieves a setting from the configuration.
+        
+        Args:
+            key (str): The key of the setting to retrieve.
+        
+        Returns:
+            Any: The value of the setting if it exists, otherwise None.
+        """
+        return self.settings.get(key)
 
-    def load_config(self):
-        if not os.path.exists(self.config_file):
-            raise ConfigError(f'Config file not found: {self.config_file}')
-        try:
-            with open(self.config_file, 'r') as f:
-                self.config_data = json.load(f)
-        except json.JSONDecodeError as e:
-            raise ConfigError(f'Error decoding JSON: {e}')
-        except Exception as e:
-            raise ConfigError(f'Unexpected error: {e}')
+    def set_setting(self, key: str, value: Any) -> None:
+        """Sets a new value for a specific configuration key.
+        
+        Args:
+            key (str): The key of the setting to update.
+            value (Any): The new value to set for the configuration.
+        """
+        self.settings[key] = value
 
-    def get(self, key, default=None):
-        if key in self.config_data:
-            return self.config_data[key]
-        if default:
-            return default
-        raise ConfigError(f'Key not found in config: {key}')
-
-    def set(self, key, value):
-        self.config_data[key] = value
-        self.save_config()
-
-    def save_config(self):
-        try:
-            with open(self.config_file, 'w') as f:
-                json.dump(self.config_data, f, indent=4)
-        except Exception as e:
-            raise ConfigError(f'Error saving config: {e}')
+    def all_settings(self) -> Dict[str, Any]:
+        """Returns all current configuration settings.
+        
+        Returns:
+            Dict[str, Any]: A dictionary of all settings.
+        """  
+        return self.settings
