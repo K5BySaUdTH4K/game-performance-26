@@ -1,19 +1,30 @@
 import logging
-import os
-from logging.handlers import RotatingFileHandler
 
-def setup_logger(log_file='app.log', max_bytes=5 * 1024 * 1024, backup_count=5, level=logging.INFO):
-    logger = logging.getLogger('game_logger')
-    logger.setLevel(level)
-    if not logger.handlers:
-        handler = RotatingFileHandler(log_file, maxBytes=max_bytes, backupCount=backup_count)
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+class GameLogger:
+    def __init__(self, name):
+        self.logger = logging.getLogger(name)
+        self.logger.setLevel(logging.DEBUG)
+        handler = logging.FileHandler(f'{name}.log')
+        handler.setLevel(logging.DEBUG)
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         handler.setFormatter(formatter)
-        logger.addHandler(handler)
-    return logger
+        self.logger.addHandler(handler)
 
-# Example of usage
+    def log(self, message, level='info'):
+        level = level.lower()
+        if level == 'debug':
+            self.logger.debug(message)
+        elif level == 'warning':
+            self.logger.warning(message)
+        elif level == 'error':
+            self.logger.error(message)
+        else:
+            self.logger.info(message)
+
+# Example usage
 if __name__ == '__main__':
-    log = setup_logger()
-    log.info('Logger has been set up successfully.')
-    log.warning('This is a warning message.')
+    game_logger = GameLogger('game_log')
+    game_logger.log('Game started', 'info')
+    game_logger.log('A minor issue occurred', 'warning')
+    game_logger.log('An error occurred in processing', 'error')
+    game_logger.log('Debugging the issue', 'debug')
