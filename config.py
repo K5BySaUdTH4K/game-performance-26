@@ -1,40 +1,35 @@
-from typing import Dict, Any
+import os
+import json
 
-class GameConfig:
-    """Class to load and hold game configuration settings."""
-    
-    def __init__(self, config: Dict[str, Any]) -> None:
-        """Initializes game configuration with the provided settings.
-        
-        Args:
-            config (Dict[str, Any]): A dictionary containing configuration settings.
-        """
-        self.settings = config
+class Config:
+    def __init__(self, config_file='settings.json'):
+        self.config_file = config_file
+        self.load_config()
 
-    def get_setting(self, key: str) -> Any:
-        """Retrieves a setting from the configuration.
-        
-        Args:
-            key (str): The key of the setting to retrieve.
-        
-        Returns:
-            Any: The value of the setting if it exists, otherwise None.
-        """
-        return self.settings.get(key)
+    def load_config(self):
+        if os.path.exists(self.config_file):
+            with open(self.config_file, 'r') as file:
+                self.settings = json.load(file)
+        else:
+            self.settings = {}  # Default settings
 
-    def set_setting(self, key: str, value: Any) -> None:
-        """Sets a new value for a specific configuration key.
-        
-        Args:
-            key (str): The key of the setting to update.
-            value (Any): The new value to set for the configuration.
-        """
+    def get(self, key, default=None):
+        return self.settings.get(key, default)
+
+    def set(self, key, value):
         self.settings[key] = value
+        self.save_config()
 
-    def all_settings(self) -> Dict[str, Any]:
-        """Returns all current configuration settings.
-        
-        Returns:
-            Dict[str, Any]: A dictionary of all settings.
-        """  
-        return self.settings
+    def save_config(self):
+        with open(self.config_file, 'w') as file:
+            json.dump(self.settings, file, indent=4)
+
+    def list_keys(self):
+        return list(self.settings.keys())
+
+# Example usage
+if __name__ == '__main__':
+    config = Config()
+    config.set('volume', 75)
+    print(config.get('volume'))  # Output: 75
+    print(config.list_keys())  # Output: ['volume']
