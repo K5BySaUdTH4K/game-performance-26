@@ -1,34 +1,26 @@
-import os
 import json
+import os
 
-class Config:
-    def __init__(self, config_file='config.json'):
-        self.config_file = config_file
-        self.settings = self.load_config()
+def load_config(config_file='config.json'):
+    if not os.path.exists(config_file):
+        raise FileNotFoundError(f'Config file {config_file} does not exist')
+    with open(config_file, 'r') as file:
+        return json.load(file)
 
-    def load_config(self):
-        if not os.path.exists(self.config_file):
-            raise FileNotFoundError(f'Config file {self.config_file} not found.')
-        with open(self.config_file, 'r') as file:
-            return json.load(file)
+def save_config(config_data, config_file='config.json'):
+    with open(config_file, 'w') as file:
+        json.dump(config_data, file, indent=4)
 
-    def get(self, key, default=None):
-        return self.settings.get(key, default)
-
-    def set(self, key, value):
-        self.settings[key] = value
-        self.save_config()
-
-    def save_config(self):
-        with open(self.config_file, 'w') as file:
-            json.dump(self.settings, file, indent=4)
-
-# Example of default config structure
-if __name__ == '__main__':
-    default_config = {
+def get_default_config():
+    return {
         'resolution': '1920x1080',
         'fullscreen': True,
-        'volume': 75
+        'volume': 70,
+        'controls': {
+            'up': 'W',
+            'down': 'S',
+            'left': 'A',
+            'right': 'D',
+            'attack': 'SPACE',
+        }
     }
-    with open('config.json', 'w') as f:
-        json.dump(default_config, f, indent=4)
