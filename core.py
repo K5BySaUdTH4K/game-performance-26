@@ -1,41 +1,40 @@
 import random
-import json
+import time
 
 class Game:
-    def __init__(self):
-        self.score = 0
-        self.max_score = 100
+    def __init__(self, name):
+        self.name = name
+        self.players = []
+        self.state = 'initialized'
 
-    def start_game(self):
-        print('Game started!')
-        self.play_rounds()
+    def add_player(self, player):
+        if player not in self.players:
+            self.players.append(player)
+            print(f'{player} added to {self.name}')
+        else:
+            print(f'{player} already in the game')
 
-    def play_rounds(self):
-        while True:
-            try:
-                user_input = input('Enter a number between 1 and 10 (or type exit to quit): ')
-                if user_input.lower() == 'exit':
-                    print('Exiting the game...')
-                    break
-                self.validate_input(user_input)
-                user_number = int(user_input)
-                self.update_score(user_number)
-                print(f'Current score: {self.score}')
-            except ValueError as ve:
-                print(f'Input error: {ve}')
-            except Exception as e:
-                print(f'Something went wrong: {e}')
+    def start(self):
+        if len(self.players) < 2:
+            print('Not enough players to start the game.')
+            return
+        self.state = 'started'
+        print(f'{self.name} has started!')
+        self.play()
 
-    def validate_input(self, user_input):
-        if not user_input.isdigit() or not (1 <= int(user_input) <= 10):
-            raise ValueError('Input must be a digit between 1 and 10')
+    def play(self):
+        while self.state == 'started':
+            print('Game is in progress...')
+            time.sleep(1)
+            self.check_winner()
 
-    def update_score(self, user_number):
-        self.score += user_number
-        if self.score > self.max_score:
-            print('Congratulations! You reached the maximum score!')
-            self.score = 0
+    def check_winner(self):
+        if random.choice([True, False]):
+            self.state = 'ended'
+            print('The game has ended!')
 
-if __name__ == '__main__':
-    game = Game()
-    game.start_game()
+
+game = Game('Epic Adventure')
+game.add_player('Alice')
+game.add_player('Bob')
+game.start()
