@@ -1,20 +1,35 @@
 import logging
-from logging.handlers import RotatingFileHandler
+import logging.handlers
 
-def setup_logger(log_file='game_performance.log', max_bytes=5*(1024**2), backup_count=3):
-    logger = logging.getLogger('GamePerformanceLogger')
-    logger.setLevel(logging.DEBUG)
-    handler = RotatingFileHandler(log_file, maxBytes=max_bytes, backupCount=backup_count)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-    return logger
+class Logger:
+    def __init__(self, name: str):
+        self.logger = logging.getLogger(name)
+        self.logger.setLevel(logging.DEBUG)
+        self.setup_handler()
 
-# Usage example
+    def setup_handler(self):
+        log_handler = logging.handlers.RotatingFileHandler(
+            'game.log', maxBytes=5*1024*1024, backupCount=5
+        )
+        log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        log_handler.setFormatter(log_formatter)
+        self.logger.addHandler(log_handler)
+
+    def debug(self, msg: str):
+        self.logger.debug(msg)
+
+    def info(self, msg: str):
+        self.logger.info(msg)
+
+    def warning(self, msg: str):
+        self.logger.warning(msg)
+
+    def error(self, msg: str):
+        self.logger.error(msg)
+
+    def critical(self, msg: str):
+        self.logger.critical(msg)
+
 if __name__ == '__main__':
-    logger = setup_logger()
-    logger.debug('This is a debug message')
-    logger.info('Logger setup complete')
-    logger.warning('Warning message for performance issue')
-    logger.error('An error occurred')
-    logger.critical('Critical issue encountered')
+    logger = Logger('GameLogger')
+    logger.info('Logger is set up and ready.')
