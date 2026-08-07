@@ -1,28 +1,28 @@
 import logging
+from logging.handlers import RotatingFileHandler
 
-class GameLogger:
-    def __init__(self, name='GameLogger'):
+class Logger:
+    def __init__(self, name='GameLogger', log_file='game.log', max_bytes=1024 * 1024, backup_count=5):
         self.logger = logging.getLogger(name)
         self.logger.setLevel(logging.DEBUG)
-        ch = logging.StreamHandler()
-        ch.setLevel(logging.DEBUG)
+        handler = RotatingFileHandler(log_file, maxBytes=max_bytes, backupCount=backup_count)
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        ch.setFormatter(formatter)
-        self.logger.addHandler(ch)
+        handler.setFormatter(formatter)
+        self.logger.addHandler(handler)
 
-    def debug(self, msg):
-        self.logger.debug(msg)
+    def debug(self, message):
+        self.logger.debug(message)
 
-    def info(self, msg):
-        self.logger.info(msg)
+    def info(self, message):
+        self.logger.info(message)
 
-    def warning(self, msg):
-        self.logger.warning(msg)
+    def warning(self, message):
+        self.logger.warning(message)
 
-    def error(self, msg):
-        self.logger.error(msg)
+    def error(self, message):
+        self.logger.error(message)
 
-    def critical(self, msg):
-        self.logger.critical(msg)
+    def critical(self, message):
+        self.logger.critical(message)
 
-logger = GameLogger()
+logger = Logger()  # This will initialize the logger
