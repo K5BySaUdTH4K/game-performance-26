@@ -1,31 +1,29 @@
-import time
+import json
 import random
 
-def compute_intensive_task(data):
-    return sum(x**2 for x in data)
+def main_loop():
+    while True:
+        user_input = input('Enter a number between 1 and 10: ')
+        if not validate_input(user_input):
+            print('Invalid input, please try again.')
+            continue
+        number = int(user_input)
+        result = process_number(number)
+        print(f'Result of processing: {result}')
+        if number == 0:
+            break
 
-class GameProcessor:
-    def __init__(self, data):
-        self.data = data
-        self.results = []
 
-    def run(self):
-        start_time = time.time()
-        print('Starting computation...')
-        self.results = [self.enhanced_compute(chunk) for chunk in self.chunk_data()]
-        end_time = time.time()
-        print(f'Computation completed in {end_time - start_time:.2f} seconds')
+def validate_input(user_input):
+    if user_input.isdigit():
+        number = int(user_input)
+        return 1 <= number <= 10
+    return False
 
-    def enhanced_compute(self, chunk):
-        # Using list comprehension for efficiency
-        return compute_intensive_task(chunk)
 
-    def chunk_data(self):
-        chunk_size = 1000  # Define chunk size
-        for i in range(0, len(self.data), chunk_size):
-            yield self.data[i:i + chunk_size]
+def process_number(number):
+    return number * random.randint(1, 5)
+
 
 if __name__ == '__main__':
-    data = [random.randint(1, 100) for _ in range(10000)]
-    processor = GameProcessor(data)
-    processor.run()
+    main_loop()
