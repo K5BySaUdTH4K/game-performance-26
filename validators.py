@@ -3,19 +3,21 @@ def validate_input(user_input):
         raise ValueError('Input must be a string')
     if len(user_input) == 0:
         raise ValueError('Input cannot be empty')
-    return user_input
+    if any(char.isdigit() for char in user_input):
+        raise ValueError('Input cannot contain numbers')
+    return True
 
-def process_input(user_input):
-    try:
-        validated_input = validate_input(user_input)
-        print(f'Processing: {validated_input}')
-    except ValueError as e:
-        print(f'Input Error: {e}')
-
-# Main processing loop
-if __name__ == '__main__':
+def main_processing_loop():
     while True:
-        user_input = input('Enter command: ')
-        process_input(user_input)
-        if user_input.lower() == 'exit':
+        user_input = input('Enter your command: ')
+        try:
+            validate_input(user_input)
+            process_command(user_input)
+        except ValueError as e:
+            print(f'Invalid input: {e}')
+        except KeyboardInterrupt:
+            print('\nExiting...')
             break
+
+if __name__ == '__main__':
+    main_processing_loop()
