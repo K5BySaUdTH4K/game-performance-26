@@ -1,26 +1,30 @@
-import os
 import json
+import os
 
-class Config:
-    def __init__(self, config_file='config.json'):
-        self.config_file = config_file
-        self.settings = self.load_config()
+class ConfigLoader:
+    def __init__(self, default_config):
+        self.default_config = default_config
+        self.config = self.default_config.copy()
 
-    def load_config(self):
-        if not os.path.exists(self.config_file):
-            raise FileNotFoundError(f'Config file {self.config_file} not found')
-        with open(self.config_file) as f:
-            return json.load(f)
+    def load_config(self, filepath):
+        if os.path.exists(filepath):
+            with open(filepath, 'r') as file:
+                file_config = json.load(file)
+                self.config.update(file_config)
+        return self.config
 
-    def get_setting(self, key, default=None):
-        return self.settings.get(key, default)
+    def get(self, key, default=None):
+        return self.config.get(key, default)
 
-    def set_setting(self, key, value):
-        self.settings[key] = value
-        self.save_config()
+# Example of default configuration
+DEFAULT_CONFIG = {
+    'resolution': '1920x1080',
+    'fullscreen': True,
+    'volume': 75,
+    'controls': {'move_up': 'W', 'move_down': 'S', 'shoot': 'SPACE'}
+}
 
-    def save_config(self):
-        with open(self.config_file, 'w') as f:
-            json.dump(self.settings, f, indent=4)
-
-config = Config()
+# Usage:
+# loader = ConfigLoader(DEFAULT_CONFIG)
+# config = loader.load_config('config.json')
+# print(config)
