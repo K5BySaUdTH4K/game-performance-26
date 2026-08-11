@@ -3,21 +3,21 @@ def validate_input(user_input):
         raise ValueError('Input must be a string')
     if len(user_input) == 0:
         raise ValueError('Input cannot be empty')
-    if any(char.isdigit() for char in user_input):
-        raise ValueError('Input cannot contain numbers')
+    if not user_input.isalnum():
+        raise ValueError('Input must be alphanumeric')
     return True
 
-def main_processing_loop():
+def main_loop():
     while True:
-        user_input = input('Enter your command: ')
         try:
+            user_input = input('Enter command: ')
             validate_input(user_input)
             process_command(user_input)
         except ValueError as e:
-            print(f'Invalid input: {e}')
+            print(f'Input error: {e}')
         except KeyboardInterrupt:
-            print('\nExiting...')
+            print('\nExiting game.')
             break
 
 if __name__ == '__main__':
-    main_processing_loop()
+    main_loop()
