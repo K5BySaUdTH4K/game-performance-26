@@ -1,37 +1,36 @@
-import random
-import time
+import json
 
 class GameHandler:
-    def __init__(self, player_name):
-        self.player_name = player_name
-        self.score = 0
-        self.start_time = time.time()
+    def __init__(self):
+        self.players = []
+        self.valid_actions = ['move', 'attack', 'defend']
 
-    def roll_dice(self):
-        return random.randint(1, 6)
+    def add_player(self, player_name):
+        if not isinstance(player_name, str) or len(player_name) == 0:
+            raise ValueError('Invalid player name: must be a non-empty string')
+        self.players.append(player_name)
 
-    def play_turn(self):
-        dice_value = self.roll_dice()
-        print(f'{self.player_name} rolled a {dice_value}.')
-        self.update_score(dice_value)
+    def process_action(self, player_name, action):
+        if player_name not in self.players:
+            raise ValueError('Player not found')
+        if action not in self.valid_actions:
+            raise ValueError(f'Invalid action: {action}')
+        # Process the action (this is a placeholder)
+        return json.dumps({'player': player_name, 'action': action})
 
-    def update_score(self, value):
-        self.score += value
-        print(f'Current score: {self.score}')
+    def main_loop(self):
+        while True:
+            try:
+                # Simulate input
+                player_name = input('Enter player name: ')
+                action = input('Enter action: ')
+                self.process_action(player_name, action)
+            except ValueError as e:
+                print(f'Error: {e}')
+            except KeyboardInterrupt:
+                print('\nGame ended by user.')
+                break
 
-    def game_duration(self):
-        elapsed = time.time() - self.start_time
-        print(f'Game duration: {elapsed:.2f} seconds')
-
-    def reset_game(self):
-        self.score = 0
-        self.start_time = time.time()
-        print('Game has been reset.')
-
-# Example usage
 if __name__ == '__main__':
-    player = GameHandler('Alice')
-    for _ in range(3):
-        player.play_turn()
-    player.game_duration()
-    player.reset_game()
+    game_handler = GameHandler()
+    game_handler.main_loop()
