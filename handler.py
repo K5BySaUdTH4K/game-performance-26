@@ -1,36 +1,46 @@
-import json
+from typing import Dict
 
 class GameHandler:
-    def __init__(self):
-        self.players = []
-        self.valid_actions = ['move', 'attack', 'defend']
+    """
+    A class to handle game events and manage game state.
+    """
 
-    def add_player(self, player_name):
-        if not isinstance(player_name, str) or len(player_name) == 0:
-            raise ValueError('Invalid player name: must be a non-empty string')
-        self.players.append(player_name)
+    def __init__(self: 'GameHandler', initial_state: Dict[str, int]) -> None:
+        """
+        Initializes the GameHandler with a given initial state.
+        :param initial_state: A dictionary representing the initial state of the game.
+        """
+        self.state = initial_state
 
-    def process_action(self, player_name, action):
-        if player_name not in self.players:
-            raise ValueError('Player not found')
-        if action not in self.valid_actions:
-            raise ValueError(f'Invalid action: {action}')
-        # Process the action (this is a placeholder)
-        return json.dumps({'player': player_name, 'action': action})
+    def increment_score(self: 'GameHandler', player_id: str, points: int) -> None:
+        """
+        Increments the player's score by a specified number of points.
+        :param player_id: The ID of the player whose score will be increased.
+        :param points: The number of points to add to the player's score.
+        """
+        if player_id in self.state:
+            self.state[player_id] += points
+        else:
+            self.state[player_id] = points
 
-    def main_loop(self):
-        while True:
-            try:
-                # Simulate input
-                player_name = input('Enter player name: ')
-                action = input('Enter action: ')
-                self.process_action(player_name, action)
-            except ValueError as e:
-                print(f'Error: {e}')
-            except KeyboardInterrupt:
-                print('\nGame ended by user.')
-                break
+    def reset_game(self: 'GameHandler') -> None:
+        """
+        Resets the game state to the initial conditions.
+        """
+        self.state.clear()
+
+    def get_score(self: 'GameHandler', player_id: str) -> int:
+        """
+        Retrieves the current score for the specified player.
+        :param player_id: The ID of the player whose score is requested.
+        :return: The current score of the player, or zero if not found.
+        """
+        return self.state.get(player_id, 0)
 
 if __name__ == '__main__':
-    game_handler = GameHandler()
-    game_handler.main_loop()
+    initial_state = {'player1': 0, 'player2': 0}
+    game_handler = GameHandler(initial_state)
+    game_handler.increment_score('player1', 10)
+    print(game_handler.get_score('player1'))  # Output: 10
+    game_handler.reset_game()
+    print(game_handler.get_score('player1'))  # Output: 0
