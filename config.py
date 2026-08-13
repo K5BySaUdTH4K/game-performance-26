@@ -2,35 +2,29 @@ import json
 import os
 
 class ConfigLoader:
-    def __init__(self, default_config):
-        self.default_config = default_config
-        self.config = self.default_config.copy()
+    def __init__(self, defaults):
+        self.defaults = defaults
+        self.config = defaults.copy()
 
-    def load(self, custom_config_path):
-        if os.path.isfile(custom_config_path):
-            with open(custom_config_path, 'r') as file:
-                custom_config = json.load(file)
-                self._merge_configs(custom_config)
-        return self.config
+    def load(self, filepath):
+        if os.path.exists(filepath):
+            with open(filepath, 'r') as file:
+                file_config = json.load(file)
+                self.config.update(file_config)
 
-    def _merge_configs(self, custom_config):
-        for key, value in custom_config.items():
-            if isinstance(value, dict) and key in self.config:
-                self.config[key] = self._merge_dicts(self.config[key], value)
-            else:
-                self.config[key] = value
-
-    def _merge_dicts(self, default, custom):
-        for key, value in custom.items():
-            if isinstance(value, dict) and key in default:
-                default[key] = self._merge_dicts(default[key], value)
-            else:
-                default[key] = value
-        return default
+    def get(self, key, default=None):
+        return self.config.get(key, default)
 
 # Example usage:
-# if __name__ == '__main__':
-#     defaults = {'setting1': 'default1', 'setting2': {'sub_setting1': 'default_sub1'}}
-#     loader = ConfigLoader(defaults)
-#     config = loader.load('./custom_config.json')
-#     print(config)
+if __name__ == '__main__':
+    default_config = {
+        'resolution': '1920x1080',
+        'fullscreen': True,
+        'volume': 75
+    }
+    config_loader = ConfigLoader(defaults=default_config)
+    config_loader.load('config.json')
+
+    print(config_loader.get('resolution'))
+    print(config_loader.get('volume', 50))
+    
