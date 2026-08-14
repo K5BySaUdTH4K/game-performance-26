@@ -1,36 +1,29 @@
 import logging
+from logging.handlers import RotatingFileHandler
 
-class CustomLogger:
-    def __init__(self, name):
+class Logger:
+    def __init__(self, name, level=logging.INFO, max_bytes=10 * 1024 * 1024, backup_count=5):
         self.logger = logging.getLogger(name)
-        self.logger.setLevel(logging.DEBUG)
-        handler = logging.StreamHandler()
-        handler.setLevel(logging.DEBUG)
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        handler.setFormatter(formatter)
-        self.logger.addHandler(handler)
+        self.logger.setLevel(level)
+        self.handler = RotatingFileHandler('game.log', maxBytes=max_bytes, backupCount=backup_count)
+        self.formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        self.handler.setFormatter(self.formatter)
+        self.logger.addHandler(self.handler)
 
-    def log_info(self, message):
-        try:
-            self.logger.info(message)
-        except Exception as e:
-            self.logger.error(f'Error logging info: {e}')  
+    def debug(self, msg):
+        self.logger.debug(msg)
 
-    def log_warning(self, message):
-        try:
-            self.logger.warning(message)
-        except Exception as e:
-            self.logger.error(f'Error logging warning: {e}')
+    def info(self, msg):
+        self.logger.info(msg)
 
-    def log_error(self, message):
-        try:
-            self.logger.error(message)
-        except Exception as e:
-            self.logger.error(f'Error logging error: {e}')
+    def warning(self, msg):
+        self.logger.warning(msg)
 
-# Usage Example
-if __name__ == '__main__':
-    logger = CustomLogger('GameLogger')
-    logger.log_info('Game started')
-    logger.log_warning('Low health warning')
-    logger.log_error('Game crashed unexpectedly')
+    def error(self, msg):
+        self.logger.error(msg)
+
+    def critical(self, msg):
+        self.logger.critical(msg)
+
+logger = Logger('GameLogger')
+logger.info('Logger initialized with rotation')
