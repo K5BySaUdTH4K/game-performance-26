@@ -1,26 +1,19 @@
 import time
-import json
-from functools import wraps
+import requests
+from requests.exceptions import RequestException
 
-cache = {}
-
-def memoize(func):
-    @wraps(func)
-    def wrapper(*args):
-        if args not in cache:
-            cache[args] = func(*args)
-        return cache[args]
-    return wrapper
-
-@memoize
-def expensive_calculation(x):
-    time.sleep(2)  # Simulating long computation
-    return x ** 2
-
-def load_json(file_path):
-    with open(file_path, 'r') as file:
-        return json.load(file)
-
-def save_json(file_path, data):
-    with open(file_path, 'w') as file:
-        json.dump(data, file, indent=4)
+def retry_request(url, max_retries=5, delay=2):
+    attempts = 0
+    while attempts < max_retries:
+        try:
+            response = requests.get(url)
+            response.raise_for_status()  # Raises HTTPError for bad responses
+            return response.json()
+        except RequestException as e:
+            attempts += 1
+            if attempts < max_retries:
+                print(f"Attempt {attempts} failed: {e}. Retrying in {delay} seconds...")
+                time.sleep(delay)
+            else:
+                print(f"Max retries reached. Last error: {e}")
+                return None
