@@ -1,29 +1,26 @@
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 600
-FPS = 60
-GRAVITY = 9.8
+FPS_LIMIT = 60
+SCREEN_WIDTH = 1920
+SCREEN_HEIGHT = 1080
 PLAYER_SPEED = 5
-BULLET_SPEED = 10
-MAX_ENEMIES = 15
-COLORS = {
-    'BLACK': (0, 0, 0),
-    'WHITE': (255, 255, 255),
-    'RED': (255, 0, 0),
-    'GREEN': (0, 255, 0),
-    'BLUE': (0, 0, 255),
+GRAVITY = 9.8
+JUMP_HEIGHT = 15
+ITEMS = {
+    'health_potion': {'restore': 50, 'quantity': 10},
+    'mana_potion': {'restore': 30, 'quantity': 5},
+    'elixir': {'restore': 100, 'quantity': 3},
 }
-ASSETS_PATH = 'assets/'
-LEVELS = [
-    {'name': 'Level 1', 'difficulty': 'easy'},
-    {'name': 'Level 2', 'difficulty': 'medium'},
-    {'name': 'Level 3', 'difficulty': 'hard'},
-]
-SOUND_EFFECTS = {
-    'jump': 'assets/sounds/jump.wav',
-    'shoot': 'assets/sounds/shoot.wav',
-    'explosion': 'assets/sounds/explosion.wav',
+
+ENEMY_STATS = {
+    'goblin': {'health': 30, 'damage': 5},
+    'troll': {'health': 100, 'damage': 10},
 }
-MUSIC_TRACKS = [
-    'assets/music/track1.mp3',
-    'assets/music/track2.mp3',
-]
+
+WEAPON_STATS = {
+    'sword': {'damage': 7, 'durability': 50},
+    'axe': {'damage': 10, 'durability': 30},
+}
+
+LEVELS = 5
+DIFFICULTY = 'medium'
+MAX_PLAYERS = 4
+POWER_UPS = ['speed_boost', 'invisibility', 'double_damage']
