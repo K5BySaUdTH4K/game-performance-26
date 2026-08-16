@@ -1,26 +1,31 @@
+import time
 import random
-import json
-from validators import validate_command
+import requests
 
-def main_loop():
-    commands = ['move', 'attack', 'defend', 'exit']
-    while True:
-        user_input = input('Enter command: ').strip()
-        if validate_command(user_input, commands):
-            process_command(user_input)
-        else:
-            print('Invalid command. Please try again.')
-        if user_input == 'exit':
-            break
+def retry_decorator(max_attempts=5, delay=1):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            attempts = 0
+            while attempts < max_attempts:
+                try:
+                    return func(*args, **kwargs)
+                except requests.exceptions.RequestException as e:
+                    attempts += 1
+                    wait_time = delay * (2 ** attempts) + random.uniform(0, 1)
+                    print(f'Attempt {attempts} failed: {e}. Retrying in {wait_time:.2f} seconds...')
+                    time.sleep(wait_time)
+            print('Max attempts reached. Operation failed.')
+            return None  # Or raise an exception if needed
+        return wrapper
+    return decorator
 
+@retry_decorator(max_attempts=3, delay=2)
+def fetch_data(url):
+    response = requests.get(url)
+    response.raise_for_status()
+    return response.json()
 
-def process_command(command):
-    action_outcomes = {
-        'move': 'You moved forward.',
-        'attack': 'You attacked the enemy.',
-        'defend': 'You took a defensive stance.'
-    }
-    print(action_outcomes.get(command, 'Command not recognized.'))
-
+# Example usage
 if __name__ == '__main__':
-    main_loop()
+    data = fetch_data('https://jsonplaceholder.typicode.com/todos/1')
+    print(data)
