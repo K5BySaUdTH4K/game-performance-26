@@ -1,34 +1,27 @@
-import time
-import random
+class InvalidInputError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
 
-class NetworkError(Exception):
-    pass
 
-class Retry:
-    def __init__(self, retries=3, delay=1, backoff=2):
-        self.retries = retries
-        self.delay = delay
-        self.backoff = backoff
+def validate_input(user_input):
+    if not isinstance(user_input, str):
+        raise InvalidInputError('Input must be a string')
+    if len(user_input) < 3:
+        raise InvalidInputError('Input must be at least 3 characters long')
 
-    def __call__(self, func):
-        def wrapper(*args, **kwargs):
-            attempts = 0
-            while attempts < self.retries:
-                try:
-                    return func(*args, **kwargs)
-                except NetworkError as e:
-                    attempts += 1
-                    wait_time = self.delay * (self.backoff ** (attempts - 1))
-                    print(f'Attempt {attempts} failed: {e}. Retrying in {wait_time} seconds...')
-                    time.sleep(wait_time)
-            raise NetworkError(f'Failed after {self.retries} attempts.')
-        return wrapper
 
-@Retry(retries=5, delay=2)
-def fetch_data(url):
-    if random.choice([True, False]):  # Simulate intermittent network failure
-        raise NetworkError('Could not reach the server.')
-    return {'data': 'response from ' + url}
+def main_loop():
+    while True:
+        try:
+            user_input = input('Enter command: ')
+            validate_input(user_input)
+            print(f'Processing command: {user_input}')
+            # Here goes the rest of the command processing
+        except InvalidInputError as e:
+            print(f'Error: {e}')
+        except KeyboardInterrupt:
+            print('\nExiting...')
+            break
 
-# Example usage:
-# print(fetch_data('http://example.com'))
+if __name__ == '__main__':
+    main_loop()
