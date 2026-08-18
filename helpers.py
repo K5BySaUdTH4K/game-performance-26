@@ -1,48 +1,25 @@
-from typing import List, Dict
+import random
+import math
+
+def random_position(x_min, x_max, y_min, y_max):
+    return (random.uniform(x_min, x_max), random.uniform(y_min, y_max))
 
 
-def calculate_frame_rate(frames: int, time_elapsed: float) -> float:
-    """Calculate frame rate based on frames and elapsed time.
-    
-    Args:
-        frames (int): The number of frames rendered.
-        time_elapsed (float): The time elapsed in seconds.
-    
-    Returns:
-        float: The calculated frame rate (frames per second).
-    """
-    if time_elapsed <= 0:
-        return 0.0
-    return frames / time_elapsed
+def distance(point1, point2):
+    return math.sqrt((point2[0] - point1[0]) ** 2 + (point2[1] - point1[1]) ** 2)
 
 
-def load_assets(asset_list: List[str]) -> Dict[str, str]:
-    """Load assets and return a dictionary of loaded assets.
-    
-    Args:
-        asset_list (List[str]): A list of asset file paths.
-    
-    Returns:
-        Dict[str, str]: A dictionary with asset names as keys and their paths as values.
-    """
-    loaded_assets = {}
-    for asset in asset_list:
-        loaded_assets[asset] = f'Loaded: {asset}'  # Simulated loading
-    return loaded_assets
+def lerp(start, end, t):
+    return start + (end - start) * t
 
 
-def find_high_score(scores: List[int]) -> int:
-    """Find the highest score from a list of scores.
-    
-    Args:
-        scores (List[int]): A list of integer scores.
-    
-    Returns:
-        int: The highest score found or 0 if the list is empty.
-    """
-    return max(scores, default=0)
+def is_point_in_rect(point, rect):
+    return rect[0] <= point[0] <= rect[0] + rect[2] and rect[1] <= point[1] <= rect[1] + rect[3]
 
 
-def reset_game() -> None:
-    """Reset the game settings to their initial values."""
-    print("Game has been reset.")
+def clamp(value, min_value, max_value):
+    return max(min(value, max_value), min_value)
+
+
+def generate_random_color():
+    return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
