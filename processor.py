@@ -1,29 +1,37 @@
-import json
-import random
+import time
+import numpy as np
 
-def main_loop():
-    while True:
-        user_input = input('Enter a number between 1 and 10: ')
-        if not validate_input(user_input):
-            print('Invalid input, please try again.')
-            continue
-        number = int(user_input)
-        result = process_number(number)
-        print(f'Result of processing: {result}')
-        if number == 0:
-            break
+class GameProcessor:
+    def __init__(self):
+        self.data = np.zeros((1000, 1000))
+        self.last_process_time = 0
 
+    def simulate_action(self, x, y):
+        # Simulating some heavy computation
+        value = (x ** 2 + y ** 2) ** 0.5
+        return value
 
-def validate_input(user_input):
-    if user_input.isdigit():
-        number = int(user_input)
-        return 1 <= number <= 10
-    return False
+    def process(self):
+        start_time = time.time()
+        for x in range(self.data.shape[0]):
+            for y in range(self.data.shape[1]):
+                self.data[x][y] = self.simulate_action(x, y)
+        self.last_process_time = time.time() - start_time
 
+    def get_last_process_time(self):
+        return self.last_process_time
 
-def process_number(number):
-    return number * random.randint(1, 5)
+    def optimize_processing(self):
+        # Optimized using vectorization
+        coordinates = np.indices(self.data.shape)
+        x, y = coordinates
+        self.data = np.sqrt(x**2 + y**2)
+        self.last_process_time = time.time() - self.last_process_time
 
-
+# Example usage
 if __name__ == '__main__':
-    main_loop()
+    processor = GameProcessor()
+    processor.process()
+    print(processor.get_last_process_time())
+    processor.optimize_processing()
+    print(processor.get_last_process_time())
