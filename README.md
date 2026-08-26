@@ -1,53 +1,36 @@
-# Game Performance 26
+# game-performance-26
 
-Game Performance 26 is a Python-based tool designed to analyze and optimize game performance through detailed metrics and analytics. This project provides developers with essential insights into frame rates, memory usage, and CPU load, enabling effective tuning of gaming applications.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+game-performance-26 is a Python toolkit that monitors performance metrics in real-time game applications. Developers can use it to measure frame times, CPU load, and memory consumption to optimize their games effectively.
 
 ## Features
-
-- **Real-time performance monitoring:** Capture frame rates, memory usage, and CPU metrics during gameplay, providing immediate feedback on performance bottlenecks.
-- **Data visualization:** Generate easy-to-understand graphs and charts of performance metrics to facilitate quick analysis and decision-making.
-- **Customizable profiling:** Tailor the profiling options according to your game’s requirements, allowing for focused performance evaluation and improvement.
-- **Integration ready:** Compatible with popular gaming frameworks like Pygame and Panda3D, ensuring seamless integration into existing projects.
+- Real-time FPS and frame timing analysis with high precision
+- Detailed CPU and RAM usage tracking for each game update cycle
+- Export performance logs in JSON and CSV formats for post-analysis
+- Minimal performance overhead for use in both testing and production
 
 ## Installation
-
-To get started with Game Performance 26, ensure you have Python 3.7+ installed. Then, clone the repository and install the required packages using pip:
+Install via pip:
 
 ```bash
-git clone https://github.com/Developer/game-performance-26.git
-cd game-performance-26
-pip install -r requirements.txt
+pip install game-performance-26
 ```
 
-## Basic Usage Example
-
-Once installed, you can start profiling your game. Here’s a simple example to get you started:
-
+## Usage
 ```python
-import performance_monitor as pm
-import your_game_framework as game
+from game_performance_26 import Monitor
 
-# Start monitoring performance
-pm.start_monitoring()
+monitor = Monitor()
 
-# Run your game loop
-while game.is_running():
-    game.update()
-    game.render()
+while running:
+    monitor.begin_frame()
+    # Handle events, update logic, render
+    monitor.end_frame()
 
-# Stop monitoring after the game is done
-pm.stop_monitoring()
-
-# Generate a performance report
-pm.generate_report('performance_output.txt')
+print(f"Average FPS: {monitor.get_fps()}")
+monitor.save_report("perf_data.json")
 ```
-
-This example initializes the performance monitor, runs your game's main loop, and generates a performance report upon completion.
 
 ## License
-
-![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details. 
-
-For contributions and feedback, feel free to open issues or pull requests! Happy gaming!
+MIT License
