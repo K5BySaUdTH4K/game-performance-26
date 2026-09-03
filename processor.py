@@ -1,48 +1,47 @@
-import time
-from collections import deque
+from typing import Dict, Any, Generator, Tuple, Callable
 
-class PerformanceProcessor:
-    def __init__(self):
-        self.cache = {}
-        self.last_update = time.time()
-        self.buffer = deque(maxlen=100)
-    def update_entities(self, entities):
-        current_time = time.time()
-        delta = current_time - self.last_update
-        self.last_update = current_time
-        updated = []
-        for entity in entities:
-            key = (entity.get('id'), round(entity.get('x', 0)), round(entity.get('y', 0)))
-            if key not in self.cache or (current_time - self.cache.get(key, 0)) > 0.05:
-                entity['x'] = entity.get('x', 0) + entity.get('speed', 1) * delta
-                entity['y'] = entity.get('y', 0) + entity.get('vy', 0) * delta
-                self.cache[key] = current_time
-                self.buffer.append(key)
-            updated.append(entity)
-        while len(self.cache) > 1000:
-            if self.buffer:
-                old_key = self.buffer.popleft()
-                self.cache.pop(old_key, None)
-        return updated
-    def process_frame(self, entities):
-        optimized = self.update_entities(entities)
-        sorted_ents = sorted(optimized, key=lambda e: (e.get('x', 0), e.get('y', 0)))
-        for i in range(len(sorted_ents) - 1):
-            e1 = sorted_ents[i]
-            e2 = sorted_ents[i + 1]
-            if abs(e1.get('x', 0) - e2.get('x', 0)) < 15 and abs(e1.get('y', 0) - e2.get('y', 0)) < 15:
-                e1['active'] = False
-                e2['active'] = False
-        return [e for e in sorted_ents if e.get('active', True)]
+class FrameValidator:
+    def __init__(self, check_fn: Callable[[Dict[str, Any]], bool], rule_id: str):
+        self.check_fn = check_fn
+        self.rule_id = rule_id
 
-def simulate_game():
-    entities = [{'id': i, 'x': float(i * 10), 'y': float(i * 5), 'speed': 3.0, 'vy': 1.0, 'active': True} for i in range(30)]
-    proc = PerformanceProcessor()
-    results = []
-    for _ in range(10):
-        entities = proc.process_frame(entities)
-        results.append(len(entities))
-    return results
+    def __or__(self, other: 'FrameValidator') -> 'FrameValidator':
+        return FrameValidator(
+            lambda f: self.check_fn(f) and other.check_fn(f),
+            f"{self.rule_id} & {other.rule_id}"
+        )
 
-if __name__ == '__main__':
-    print(simulate_game())
+    def evaluate(self, frame: Dict[str, Any]) -> Tuple[bool, str]:
+        try:
+            valid = self.check_fn(frame)
+            return valid, "" if valid else f"Validation failure on [{self.rule_id}]"
+        except Exception as err:
+            return False, f"Schema breach: {err}"
+
+VALID_FPS = FrameValidator(lambda f: isinstance(f.get('fps'), (int, float)) and 0 <= f['fps'] <= 1000, "FPS_RANGE")
+VALID_TEMP = FrameValidator(lambda f: isinstance(f.get('gpu_temp'), (int, float)) and 20 <= f['gpu_temp'] <= 115, "GPU_TEMP_BOUNDS")
+VALID_TIME = FrameValidator(lambda f: isinstance(f.get('frame_time_ms'), (int, float)) and f['frame_time_ms'] > 0, "POSITIVE_FRAME_TIME")
+
+GAME_TELEMETRY_RULES = VALID_FPS | VALID_TEMP | VALID_TIME
+
+def process_telemetry_stream(stream: Generator[Dict[str, Any], None, None]) -> Generator[Dict[str, Any], None, None]:
+    for frame_index, frame_data in enumerate(stream):
+        if not isinstance(frame_data, dict):
+            yield {"frame_id": frame_index, "status": "DROPPED", "reason": "Non-dict frame structure"}
+            continue
+
+        is_valid, message = GAME_TELEMETRY_RULES.evaluate(frame_data)
+        if not is_valid:
+            yield {"frame_id": frame_index, "status": "REJECTED", "reason": message}
+            continue
+
+        fps = float(frame_data['fps'])
+        latency = round(1000.0 / max(fps, 0.001), 3)
+        
+        yield {
+            "frame_id": frame_index,
+            "status": "PROCESSED",
+            "fps": round(fps, 2),
+            "latency_ms": latency,
+            "thermal_warning": frame_data['gpu_temp'] >= 85.0
+        }
