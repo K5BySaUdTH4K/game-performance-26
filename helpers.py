@@ -1,25 +1,39 @@
-import random
-import math
+from typing import List, Union, Callable, Any
+import time
 
-def random_position(x_min, x_max, y_min, y_max):
-    return (random.uniform(x_min, x_max), random.uniform(y_min, y_max))
+Metric = Union[int, float]
 
+def throttle_frame_rate(fps_limit: int) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    """
+    Decorator to artificially cap function execution speed.
+    Ensures game logic loops don't melt the GPU.
+    """
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        interval: float = 1.0 / fps_limit
+        last_call: float = 0.0
 
-def distance(point1, point2):
-    return math.sqrt((point2[0] - point1[0]) ** 2 + (point2[1] - point1[1]) ** 2)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            nonlocal last_call
+            elapsed = time.perf_counter() - last_call
+            if elapsed < interval:
+                time.sleep(interval - elapsed)
+            last_call = time.perf_counter()
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
 
+def calculate_delta_time(frame_times: List[Metric]) -> float:
+    """
+    Calculates moving average of frame processing time.
+    Returns the average in seconds for engine synchronization.
+    """
+    if not frame_times:
+        return 0.016
+    return float(sum(frame_times) / len(frame_times))
 
-def lerp(start, end, t):
-    return start + (end - start) * t
-
-
-def is_point_in_rect(point, rect):
-    return rect[0] <= point[0] <= rect[0] + rect[2] and rect[1] <= point[1] <= rect[1] + rect[3]
-
-
-def clamp(value, min_value, max_value):
-    return max(min(value, max_value), min_value)
-
-
-def generate_random_color():
-    return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+def lerp_position(start: float, end: float, alpha: float) -> float:
+    """
+    Linear interpolation for smooth object transitions.
+    Standard implementation for frame-independent movement.
+    """
+    return float(start + (end - start) * alpha)
