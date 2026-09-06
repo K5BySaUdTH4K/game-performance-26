@@ -1,28 +1,36 @@
-class GameError(Exception):
-    """Base class for exceptions in this module."""
+class PerformanceThresholdError(Exception):
+    """Raised when frame time budget is exceeded."""
+    def __init__(self, budget, actual, delta):
+        self.message = f"Frame drop detected: Budget {budget}ms, Actual {actual}ms (+{delta}ms)"
+        super().__init__(self.message)
+
+class DataCorruptedError(Exception):
+    """Raised when incoming game telemetry is malformed."""
     pass
 
-class PlayerNotFoundError(GameError):
-    """Raised when a player is not found."""
-    def __init__(self, player_id):
-        self.player_id = player_id
-        super().__init__(f'Player with ID {player_id} not found.')
+class ResourceSyncError(Exception):
+    """Raised when GPU/CPU asset synchronization fails."""
+    pass
 
-class InvalidMoveError(GameError):
-    """Raised when a move is invalid."""
-    def __init__(self, move, reason):
-        self.move = move
-        self.reason = reason
-        super().__init__(f'Invalid move: {move}. Reason: {reason}')
+def raise_if_bottleneck(frame_time_ms: float, limit_ms: float = 16.67):
+    """Unconventional threshold check for frame-pacing."""
+    if frame_time_ms > limit_ms:
+        raise PerformanceThresholdError(limit_ms, frame_time_ms, round(frame_time_ms - limit_ms, 2))
 
-class GameStateError(GameError):
-    """Raised when an unexpected game state is encountered."""
-    def __init__(self, message):
-        super().__init__(message)
+def validate_telemetry_packet(packet: dict):
+    """Enforce telemetry schema with minimal runtime overhead."""
+    required = {'frame_id', 'delta_time', 'input_state'}
+    if not all(k in packet for k in required):
+        raise DataCorruptedError("Invalid telemetry packet structure")
+    return True
 
-# Example usage in a game context
-if __name__ == '__main__':
-    try:
-        raise PlayerNotFoundError(42)
-    except GameError as e:
-        print(e)
+class PerformanceGuard:
+    """Context manager for hot-path performance monitoring."""
+    def __init__(self, tag):
+        self.tag = tag
+    def __enter__(self):
+        return self
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is PerformanceThresholdError:
+            print(f"Critical bottleneck in {self.tag}: {exc_val}")
+        return False
