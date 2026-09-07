@@ -1,43 +1,35 @@
-from typing import Any, Dict, Optional
+import typing
 
-class InputSanitizer:
-    def __init__(self, schema: Dict[str, type]):
-        self.schema = schema
+class ValidationError(ValueError):
+    pass
 
-    def __call__(self, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        try:
-            validated = {}
-            for key, expected_type in self.schema.items():
-                value = payload.get(key)
-                if not isinstance(value, expected_type):
-                    raise ValueError(f"Key {key} expects {expected_type.__name__}, got {type(value).__name__}")
-                validated[key] = value
-            return validated
-        except (ValueError, AttributeError):
-            return None
+class MetricValidator:
+    def __init__(self):
+        self.rules = {}
 
-def validate_game_input(data: Dict[str, Any]) -> bool:
-    """Strict validation for frame-critical packet processing."""
-    required = {
-        "player_id": int,
-        "action_code": int,
-        "timestamp": float,
-        "payload": dict
-    }
-    
-    if not isinstance(data, dict):
-        return False
-        
-    for field, field_type in required.items():
-        if field not in data or not isinstance(data[field], field_type):
-            return False
-            
-    # Unusual check: packet freshness threshold
-    if data['timestamp'] < 0:
-        return False
-        
-    return True
+    def rule(self, metric: str):
+        def decorator(func):
+            self.rules[metric] = func
+            return func
+        return decorator
 
-def sanitize_stream(stream_data: Any) -> Dict[str, Any]:
-    # Coerce to dictionary or return empty to prevent crash
-    return stream_data if isinstance(stream_data, dict) else {}
+    def validate(self, data: dict[str, typing.Any]) -> bool:
+        for metric, value in data.items():
+            if metric in self.rules:
+                if not self.rules[metric](value):
+                    raise ValidationError(f"Metric {metric} failed validation with value: {value}")
+        return True
+
+validator = MetricValidator()
+
+@validator.rule("fps")
+def _validate_fps(val) -> bool:
+    return isinstance(val, (int, float)) and 0 <= val <= 1000
+
+@validator.rule("frame_time")
+def _validate_frame_time(val) -> bool:
+    return isinstance(val, (int, float)) and val >= 0.1
+
+@validator.rule("gpu_temp")
+def _validate_gpu_temp(val) -> bool:
+    return isinstance(val, (int, float)) and 30.0 <= val <= 105.0
