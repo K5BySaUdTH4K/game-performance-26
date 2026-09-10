@@ -1,36 +1,28 @@
 import logging
 from logging.handlers import RotatingFileHandler
-import sys
-from pathlib import Path
+import os
 
-LOG_DIR = Path('logs')
-LOG_DIR.mkdir(exist_ok=True)
-
-def setup_performance_logger(name: str = 'game_engine') -> logging.Logger:
-    """Initializes high-performance game state logging"""
+def setup_logger(name: str = 'game_perf_logger', log_file: str = 'game.log') -> logging.Logger:
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
-
-    formatter = logging.Formatter(
-        '[%(asctime)s] [%(levelname)s] [%(name)s] >> %(message)s',
-        datefmt='%H:%M:%S'
-    )
-
+    
+    formatter = logging.Formatter('%(asctime)s | %(levelname)-8s | %(name)s : %(message)s')
+    
+    # Console output for dev
+    console = logging.StreamHandler()
+    console.setFormatter(formatter)
+    logger.addHandler(console)
+    
+    # Rolling file logic: 5MB per file, keep 3 backups
     file_handler = RotatingFileHandler(
-        LOG_DIR / f'{name}.log',
-        maxBytes=5 * 1024 * 1024,
+        log_file, 
+        maxBytes=5 * 1024 * 1024, 
         backupCount=3
     )
     file_handler.setFormatter(formatter)
-
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setFormatter(formatter)
-
-    if not logger.handlers:
-        logger.addHandler(file_handler)
-        logger.addHandler(console_handler)
-
+    logger.addHandler(file_handler)
+    
     return logger
 
-# Global instance for performance telemetry
-perf_log = setup_performance_logger('perf_tracker')
+# Singleton-ish instance for global usage
+perf_logger = setup_logger()
