@@ -1,29 +1,35 @@
-import time
-import functools
-import random
+from typing import Optional, Dict, Any
 
-class NetworkGlitch(Exception):
-    pass
+class PerformanceError(Exception):
+    """Base exception for all performance-related gaming anomalies."""
+    def __init__(self, message: str, severity: int = 1) -> None:
+        super().__init__(message)
+        self.severity: int = severity
 
-def retry_with_jitter(max_attempts=3, backoff=0.5):
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            attempts = 0
-            while attempts < max_attempts:
-                try:
-                    return func(*args, **kwargs)
-                except NetworkGlitch as e:
-                    attempts += 1
-                    if attempts == max_attempts:
-                        raise e
-                    sleep_time = (backoff * (2 ** attempts)) + (random.random() * 0.1)
-                    time.sleep(sleep_time)
-        return wrapper
-    return decorator
+class FrameDropError(PerformanceError):
+    """Raised when the render pipeline hits a bottleneck."""
+    def __init__(self, fps: float, target: float) -> None:
+        self.fps: float = fps
+        self.target: float = target
+        super().__init__(f"frame drop: current {fps}fps, target {target}fps", severity=2)
 
-def resilient_request(endpoint, payload=None):
-    """Simulates a volatile gaming network call."""
-    if random.random() < 0.7:
-        raise NetworkGlitch(f"Packet drop at {endpoint}")
-    return {"status": 200, "data": "success"}
+class ResourceLeakError(PerformanceError):
+    """Signifies runaway memory allocation during asset lifecycle."""
+    def __init__(self, asset_id: str, delta: int) -> None:
+        self.asset_id: str = asset_id
+        self.delta: int = delta
+        super().__init__(f"leak detected in {asset_id}: delta {delta} bytes", severity=3)
+
+class InitializationError(PerformanceError):
+    """Hard stop for graphics engine boot-up failures."""
+    def __init__(self, module: str, context: Optional[Dict[str, Any]] = None) -> None:
+        self.module: str = module
+        self.context: Dict[str, Any] = context or {}
+        super().__init__(f"critical boot failure: {module}", severity=5)
+
+class ThrottleViolationError(PerformanceError):
+    """Triggers when thermal limits or power budgets are exceeded."""
+    def __init__(self, temp: float, limit: float) -> None:
+        self.temp: float = temp
+        self.limit: float = limit
+        super().__init__(f"thermal throttling active: {temp}C exceeds {limit}C", severity=4)
