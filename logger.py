@@ -1,28 +1,31 @@
+import time
+import functools
 import logging
-from logging.handlers import RotatingFileHandler
-import os
 
-def setup_logger(name: str = 'game_perf_logger', log_file: str = 'game.log') -> logging.Logger:
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
-    
-    formatter = logging.Formatter('%(asctime)s | %(levelname)-8s | %(name)s : %(message)s')
-    
-    # Console output for dev
-    console = logging.StreamHandler()
-    console.setFormatter(formatter)
-    logger.addHandler(console)
-    
-    # Rolling file logic: 5MB per file, keep 3 backups
-    file_handler = RotatingFileHandler(
-        log_file, 
-        maxBytes=5 * 1024 * 1024, 
-        backupCount=3
-    )
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
-    
-    return logger
+logger = logging.getLogger('game-performance-26')
 
-# Singleton-ish instance for global usage
-perf_logger = setup_logger()
+def retry_on_failure(max_attempts=3, delay=1.5, backoff=2):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            current_delay = delay
+            for attempt in range(max_attempts):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    if attempt == max_attempts - 1:
+                        logger.error(f'Final attempt failed for {func.__name__}: {e}')
+                        raise
+                    logger.warning(f'Attempt {attempt + 1} failed, retrying in {current_delay}s...')
+                    time.sleep(current_delay)
+                    current_delay *= backoff
+        return wrapper
+    return decorator
+
+@retry_on_failure(max_attempts=4)
+def perform_network_request(endpoint):
+    # Simulate volatile network state
+    import random
+    if random.random() < 0.7:
+        raise ConnectionError('Packet loss encountered')
+    return {'status': 200, 'data': 'payload'}
