@@ -1,36 +1,57 @@
-import json
 import os
+import json
+from typing import Any, Dict
 
-class ConfigLoader:
-    def __init__(self, default_config_path):
-        self.default_config_path = default_config_path
-        self.config_data = self.load_defaults() 
+DEFAULT_CONFIG: Dict[str, Any] = {
+    "target_fps": 60,
+    "enable_vsync": True,
+    "render_distance": 10,
+    "shadow_quality": "medium",
+    "buffer_size": 4096,
+    "metrics_port": 8000
+}
 
-    def load_defaults(self):
-        with open(self.default_config_path, 'r') as file:
-            return json.load(file)
+class GameConfig:
+    def __init__(self, filepath: str = "config.json"):
+        self._filepath = filepath
+        self._file_data = self._load_file()
 
-    def override_with_env(self):
-        for key, value in os.environ.items():
-            if key.startswith('GAME_'):
-                self.set_config_value(key[5:], value)
+    def _load_file(self) -> Dict[str, Any]:
+        if os.path.exists(self._filepath):
+            try:
+                with open(self._filepath, "r") as f:
+                    return json.load(f)
+            except (json.JSONDecodeError, IOError):
+                pass
+        return {}
 
-    def set_config_value(self, key, value):
-        keys = key.split('__')
-        data = self.config_data
-        for k in keys[:-1]:
-            data = data.setdefault(k, {})
-        data[keys[-1]] = value
+    def get(self, key: str) -> Any:
+        env_key = f"GAME_{key.upper()}"
+        if env_key in os.environ:
+            val = os.environ[env_key]
+            default_val = DEFAULT_CONFIG.get(key)
+            if default_val is not None:
+                try:
+                    if isinstance(default_val, bool):
+                        return val.lower() in ("true", "1", "yes")
+                    return type(default_val)(val)
+                except ValueError:
+                    return val
+            return val
 
-    def get(self, key, default=None):
-        keys = key.split('__')
-        data = self.config_data
-        for k in keys:
-            data = data.get(k, {})
-        return data if data else default
+        if key in self._file_data:
+            return self._file_data[key]
 
-# Usage
-if __name__ == '__main__':
-    config_loader = ConfigLoader('default_config.json')
-    config_loader.override_with_env()
-    print(config_loader.get('resolution', '1920x1080'))
+        if key in DEFAULT_CONFIG:
+            return DEFAULT_CONFIG[key]
+
+        raise KeyError(f"Configuration key '{key}' not found")
+
+    def __getattr__(self, name: str) -> Any:
+        try:
+            return self.get(name)
+        except KeyError as e:
+            raise AttributeError(f"'GameConfig' has no attribute '{name}'") from e
+
+    def __getitem__(self, item: str) -> Any:
+        return self.get(item)
