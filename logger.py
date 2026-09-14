@@ -1,31 +1,29 @@
-import time
-import functools
 import logging
+import os
+from logging.handlers import RotatingFileHandler
 
-logger = logging.getLogger('game-performance-26')
+def get_performance_logger(name: str, log_path: str = "logs/game.log") -> logging.Logger:
+    os.makedirs(os.path.dirname(log_path), exist_ok=True)
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
 
-def retry_on_failure(max_attempts=3, delay=1.5, backoff=2):
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            current_delay = delay
-            for attempt in range(max_attempts):
-                try:
-                    return func(*args, **kwargs)
-                except Exception as e:
-                    if attempt == max_attempts - 1:
-                        logger.error(f'Final attempt failed for {func.__name__}: {e}')
-                        raise
-                    logger.warning(f'Attempt {attempt + 1} failed, retrying in {current_delay}s...')
-                    time.sleep(current_delay)
-                    current_delay *= backoff
-        return wrapper
-    return decorator
+    if not logger.handlers:
+        formatter = logging.Formatter(
+            '%(asctime)s | %(levelname)-8s | [PERF-CORE] %(message)s'
+        )
 
-@retry_on_failure(max_attempts=4)
-def perform_network_request(endpoint):
-    # Simulate volatile network state
-    import random
-    if random.random() < 0.7:
-        raise ConnectionError('Packet loss encountered')
-    return {'status': 200, 'data': 'payload'}
+        # 5MB rotation, keeps 3 historical backups
+        file_handler = RotatingFileHandler(
+            log_path, maxBytes=5*1024*1024, backupCount=3
+        )
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(formatter)
+        logger.addHandler(console_handler)
+
+    return logger
+
+# Custom logger instance for high-frequency game performance tracking
+perf_logger = get_performance_logger("game_performance_engine")
