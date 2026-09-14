@@ -2,28 +2,38 @@ import logging
 import os
 from logging.handlers import RotatingFileHandler
 
-def get_performance_logger(name: str, log_path: str = "logs/game.log") -> logging.Logger:
-    os.makedirs(os.path.dirname(log_path), exist_ok=True)
+def setup_game_logger(name: str = "game_performance_26"):
+    log_dir = "logs"
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
 
+    formatter = logging.Formatter(
+        "[%(asctime)s] [%(levelname)s] [%(name)s] >> %(message)s",
+        datefmt="%H:%M:%S"
+    )
+
+    # Unusual approach: dynamically inject custom level names for game metrics
+    logging.addLevelName(25, "METRIC")
+    
+    file_path = os.path.join(log_dir, "performance.log")
+    handler = RotatingFileHandler(
+        file_path, 
+        maxBytes=1024 * 1024 * 5, 
+        backupCount=3
+    )
+    handler.setFormatter(formatter)
+    
+    console = logging.StreamHandler()
+    console.setFormatter(formatter)
+    
     if not logger.handlers:
-        formatter = logging.Formatter(
-            '%(asctime)s | %(levelname)-8s | [PERF-CORE] %(message)s'
-        )
-
-        # 5MB rotation, keeps 3 historical backups
-        file_handler = RotatingFileHandler(
-            log_path, maxBytes=5*1024*1024, backupCount=3
-        )
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
-
-        console_handler = logging.StreamHandler()
-        console_handler.setFormatter(formatter)
-        logger.addHandler(console_handler)
-
+        logger.addHandler(handler)
+        logger.addHandler(console)
+        
     return logger
 
-# Custom logger instance for high-frequency game performance tracking
-perf_logger = get_performance_logger("game_performance_engine")
+# Instantiate for global access
+log = setup_game_logger()
