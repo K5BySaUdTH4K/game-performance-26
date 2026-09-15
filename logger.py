@@ -1,39 +1,37 @@
-import logging
-import os
-from logging.handlers import RotatingFileHandler
+import time
+import json
+from datetime import datetime
 
-def setup_game_logger(name: str = "game_performance_26"):
-    log_dir = "logs"
-    if not os.path.exists(log_dir):
-        os.makedirs(log_dir)
+class PerformanceTracker:
+    def __init__(self, buffer_size=10):
+        self.buffer = []
+        self.buffer_size = buffer_size
 
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
+    def log_frame(self, frame_time: float, gpu_temp: float, fps: int):
+        timestamp = datetime.utcnow().isoformat()
+        entry = {
+            "ts": timestamp,
+            "ms": round(frame_time, 4),
+            "gpu": gpu_temp,
+            "fps": fps
+        }
+        self.buffer.append(entry)
+        if len(self.buffer) >= self.buffer_size:
+            self.flush()
 
-    formatter = logging.Formatter(
-        "[%(asctime)s] [%(levelname)s] [%(name)s] >> %(message)s",
-        datefmt="%H:%M:%S"
-    )
+    def flush(self):
+        if not self.buffer:
+            return
+        try:
+            with open('metrics.jsonl', 'a') as f:
+                for entry in self.buffer:
+                    f.write(json.dumps(entry) + '\n')
+            self.buffer.clear()
+        except IOError as e:
+            print(f"Critical performance logging failure: {e}")
 
-    # Unusual approach: dynamically inject custom level names for game metrics
-    logging.addLevelName(25, "METRIC")
-    
-    file_path = os.path.join(log_dir, "performance.log")
-    handler = RotatingFileHandler(
-        file_path, 
-        maxBytes=1024 * 1024 * 5, 
-        backupCount=3
-    )
-    handler.setFormatter(formatter)
-    
-    console = logging.StreamHandler()
-    console.setFormatter(formatter)
-    
-    if not logger.handlers:
-        logger.addHandler(handler)
-        logger.addHandler(console)
-        
-    return logger
+    def __enter__(self):
+        return self
 
-# Instantiate for global access
-log = setup_game_logger()
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.flush()
