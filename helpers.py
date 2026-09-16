@@ -1,34 +1,38 @@
+import time
 import functools
-import logging
-from typing import Callable, Any
+from typing import Callable, Any, Dict
 
-logger = logging.getLogger('performance-logger')
+class FrameRateGovernor:
+    def __init__(self, target_fps: int = 60):
+        self.frame_time = 1.0 / target_fps
+        self.last_frame = 0.0
 
-class PerformanceError(Exception):
-    """Custom exception for edge cases in gaming loop."""
-    pass
+    def __call__(self, func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            start_time = time.perf_counter()
+            result = func(*args, **kwargs)
+            elapsed = time.perf_counter() - start_time
+            sleep_time = self.frame_time - elapsed
+            if sleep_time > 0:
+                time.sleep(sleep_time)
+            return result
+        return wrapper
 
-def robust_execution(func: Callable) -> Callable:
-    @functools.wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        try:
-            return func(*args, **kwargs)
-        except (ValueError, ZeroDivisionError, TypeError) as e:
-            logger.error(f'Edge case trigger in {func.__name__}: {e}')
-            return None
-        except Exception as e:
-            raise PerformanceError(f'Critical game engine failure: {e}') from e
-    return wrapper
+def aggregate_player_metrics(session_data: list[Dict[str, float]]) -> Dict[str, float]:
+    """Compresses telemetry bursts into optimized average vectors."""
+    if not session_data:
+        return {}
+    keys = session_data[0].keys()
+    return {k: sum(d[k] for d in session_data) / len(session_data) for k in keys}
 
-@robust_execution
-def calculate_fps(frame_times: list) -> float:
-    if not frame_times:
-        raise ValueError('Empty frame buffer')
-    return 1000.0 / (sum(frame_times) / len(frame_times))
+def bitwise_status_check(flags: int, mask: int) -> bool:
+    """Fast bitmask check for engine-level status flags."""
+    return (flags & mask) == mask
 
-def sanitize_input(value: Any) -> float:
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        logger.warning('Invalid input, defaulting to zero')
-        return 0.0
+# Usage example for performance-critical systems
+if __name__ == '__main__':
+    governor = FrameRateGovernor(144)
+    @governor
+    def tick_simulation():
+        return True
