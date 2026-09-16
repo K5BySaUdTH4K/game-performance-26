@@ -1,37 +1,47 @@
-import logging
-from logging.handlers import RotatingFileHandler
-import os
-import sys
+import time
+import random
+from typing import Callable, Any, Tuple, Type
 
-def get_game_logger():
-    logger = logging.getLogger('game-performance-26')
-    logger.setLevel(logging.DEBUG)
-    if not logger.handlers:
-        logs_dir = 'logs'
-        os.makedirs(logs_dir, exist_ok=True)
-        log_file = os.path.join(logs_dir, 'performance.log')
-        rotating_handler = RotatingFileHandler(
-            log_file,
-            maxBytes=10 * 1024 * 1024,
-            backupCount=5,
-            encoding='utf-8'
-        )
-        rotating_handler.setLevel(logging.INFO)
-        class GameFormatter(logging.Formatter):
-            def format(self, record):
-                if not hasattr(record, 'fps'):
-                    record.fps = 'N/A'
-                if not hasattr(record, 'frame_time'):
-                    record.frame_time = 'N/A'
-                return super().format(record)
-        formatter = GameFormatter(
-            '%(asctime)s | %(name)s | %(levelname)s | FPS:%(fps)s Time:%(frame_time)s | %(message)s'
-        )
-        rotating_handler.setFormatter(formatter)
-        logger.addHandler(rotating_handler)
-        stream_handler = logging.StreamHandler(sys.stderr)
-        stream_handler.setLevel(logging.WARNING)
-        stream_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-        stream_handler.setFormatter(stream_formatter)
-        logger.addHandler(stream_handler)
-    return logger
+class GameNetworkRetrier:
+    """
+    A tick-friendly network retry handler for live game loops.
+    Instead of blocking blindly, it manages retries with golden-ratio backoff.
+    """
+    def __init__(
+        self, 
+        max_attempts: int = 4, 
+        initial_delay: float = 0.016,  # roughly 1 frame at 60fps
+        max_delay: float = 1.0
+    ):
+        self.max_attempts = max_attempts
+        self.initial_delay = initial_delay
+        self.max_delay = max_delay
+
+    def execute(self, operation: Callable[[], Any], allowed_exceptions: Tuple[Type[Exception], ...]) -> Any:
+        attempt = 0
+        delay = self.initial_delay
+        
+        while True:
+            try:
+                return operation()
+            except allowed_exceptions as exc:
+                attempt += 1
+                if attempt >= self.max_attempts:
+                    raise exc
+                
+                # Golden-ratio escalation with game frame sync jitter
+                golden_ratio = 1.618
+                delay = min(delay * golden_ratio, self.max_delay)
+                jitter = random.uniform(0.9, 1.1)
+                actual_sleep = delay * jitter
+                
+                time.sleep(actual_sleep)
+
+def gaming_retry(max_attempts: int = 5, initial_delay: float = 0.033) -> Callable:
+    """Decorator wrapping the GameNetworkRetrier with network-specific errors."""
+    retrier = GameNetworkRetrier(max_attempts=max_attempts, initial_delay=initial_delay)
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            return retrier.execute(lambda: func(*args, **kwargs), (ConnectionError, TimeoutError))
+        return wrapper
+    return decorator
