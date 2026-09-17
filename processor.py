@@ -1,36 +1,43 @@
-import time
+import json
+import os
+from typing import Any, Dict
 
-class InputProcessor:
-    def __init__(self):
-        self.valid_keys = {'w', 'a', 's', 'd', 'jump', 'crouch'}
-        self.max_freq = 0.016
-        self.last_tick = time.time()
+class ConfigProcessor:
+    """A magical config injector for high-perf game states."""
+    def __init__(self, defaults: Dict[str, Any] = None):
+        self.data = defaults or {}
 
-    def validate(self, raw_input):
-        if not isinstance(raw_input, dict):
-            return False
-        if not set(raw_input.keys()).issubset(self.valid_keys):
-            return False
-        if any(not isinstance(v, (int, float)) for v in raw_input.values()):
-            return False
-        return True
+    def load_from_env(self, prefix: str = "GP26_") -> None:
+        """Harvests system environment variables for overrides."""
+        for key, value in os.environ.items():
+            if key.startswith(prefix):
+                clean_key = key[len(prefix):].lower()
+                self.data[clean_key] = self._cast_value(value)
 
-    def process_loop(self, event_stream):
-        for event in event_stream:
-            now = time.time()
-            if now - self.last_tick < self.max_freq:
-                continue
+    def _cast_value(self, val: str) -> Any:
+        try:
+            if val.lower() in ('true', 'false'): return val.lower() == 'true'
+            if val.isdigit(): return int(val)
+            return float(val)
+        except ValueError:
+            return val
 
-            if self.validate(event):
-                self.execute_logic(event)
-                self.last_tick = now
-            else:
-                self.log_invalid(event)
+    def load_json(self, path: str) -> None:
+        """Merges persistent storage JSON into config map."""
+        if os.path.exists(path):
+            with open(path, 'r') as f:
+                self.data.update(json.load(f))
 
-    def execute_logic(self, data):
-        # high performance game state update
-        pass
+    def get(self, key: str, fallback: Any = None) -> Any:
+        """Fetches value or falls back to cosmic default."""
+        return self.data.get(key, fallback)
 
-    def log_invalid(self, event):
-        # minimal logging for performance stability
-        pass
+def initialize_game_config() -> ConfigProcessor:
+    config = ConfigProcessor({
+        "fps_limit": 144,
+        "vsync": True,
+        "render_scale": 1.0
+    })
+    config.load_json("settings.json")
+    config.load_from_env()
+    return config
