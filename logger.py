@@ -1,37 +1,36 @@
 import time
-import json
-from datetime import datetime
+import functools
+from typing import Callable, Any
 
 class PerformanceTracker:
-    def __init__(self, buffer_size=10):
-        self.buffer = []
-        self.buffer_size = buffer_size
+    def __init__(self, threshold_ms: float = 16.67):
+        self.threshold = threshold_ms
 
-    def log_frame(self, frame_time: float, gpu_temp: float, fps: int):
-        timestamp = datetime.utcnow().isoformat()
-        entry = {
-            "ts": timestamp,
-            "ms": round(frame_time, 4),
-            "gpu": gpu_temp,
-            "fps": fps
-        }
-        self.buffer.append(entry)
-        if len(self.buffer) >= self.buffer_size:
-            self.flush()
+    def __call__(self, func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            start = time.perf_counter()
+            result = func(*args, **kwargs)
+            elapsed = (time.perf_counter() - start) * 1000
+            if elapsed > self.threshold:
+                print(f'[WARN] {func.__name__} frame spike: {elapsed:.2f}ms')
+            return result
+        return wrapper
 
-    def flush(self):
-        if not self.buffer:
-            return
-        try:
-            with open('metrics.jsonl', 'a') as f:
-                for entry in self.buffer:
-                    f.write(json.dumps(entry) + '\n')
-            self.buffer.clear()
-        except IOError as e:
-            print(f"Critical performance logging failure: {e}")
+    @staticmethod
+    def log_payload(data: dict):
+        """Serializes telemetry into compact buffer format."""
+        keys = sorted(data.keys())
+        buffer = '|'.join(f'{k}:{data[k]}' for k in keys)
+        print(f'[TELEMETRY] {buffer}')
 
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.flush()
+def frame_metric(func: Callable) -> Callable:
+    """Decorator for tracking logic execution time."""
+    @functools.wraps(func)
+    def timed(*args, **kwargs):
+        t0 = time.perf_counter()
+        res = func(*args, **kwargs)
+        t1 = time.perf_counter()
+        PerformanceTracker.log_payload({'func': func.__name__, 'ms': round((t1-t0)*1000, 3)})
+        return res
+    return timed
