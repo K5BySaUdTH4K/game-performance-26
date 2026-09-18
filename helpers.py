@@ -1,38 +1,45 @@
 import time
 import functools
-from typing import Callable, Any, Dict
+from typing import Callable, Any
 
-class FrameRateGovernor:
-    def __init__(self, target_fps: int = 60):
-        self.frame_time = 1.0 / target_fps
-        self.last_frame = 0.0
-
-    def __call__(self, func: Callable) -> Callable:
+def throttle(seconds: float):
+    """Delay execution to prevent engine frame spikes."""
+    def decorator(func: Callable):
+        last_called = [0.0]
         @functools.wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
-            start_time = time.perf_counter()
-            result = func(*args, **kwargs)
-            elapsed = time.perf_counter() - start_time
-            sleep_time = self.frame_time - elapsed
-            if sleep_time > 0:
-                time.sleep(sleep_time)
-            return result
+        def wrapper(*args, **kwargs):
+            elapsed = time.perf_counter() - last_called[0]
+            if elapsed >= seconds:
+                last_called[0] = time.perf_counter()
+                return func(*args, **kwargs)
         return wrapper
+    return decorator
 
-def aggregate_player_metrics(session_data: list[Dict[str, float]]) -> Dict[str, float]:
-    """Compresses telemetry bursts into optimized average vectors."""
-    if not session_data:
-        return {}
-    keys = session_data[0].keys()
-    return {k: sum(d[k] for d in session_data) / len(session_data) for k in keys}
+def memoize_lru(limit: int = 128):
+    """Persistent cache for expensive lookup operations."""
+    cache = {}
+    def decorator(func: Callable):
+        @functools.wraps(func)
+        def wrapper(*args):
+            if args not in cache:
+                if len(cache) >= limit:
+                    cache.pop(next(iter(cache)))
+                cache[args] = func(*args)
+            return cache[args]
+        return wrapper
+    return decorator
 
-def bitwise_status_check(flags: int, mask: int) -> bool:
-    """Fast bitmask check for engine-level status flags."""
-    return (flags & mask) == mask
+def batch_process(items: list, chunk_size: int):
+    """Generator for processing entities in manageable chunks."""
+    for i in range(0, len(items), chunk_size):
+        yield items[i:i + chunk_size]
 
-# Usage example for performance-critical systems
-if __name__ == '__main__':
-    governor = FrameRateGovernor(144)
-    @governor
-    def tick_simulation():
-        return True
+def benchmark(func: Callable):
+    """Instrumentation wrapper for performance profiling."""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        start = time.perf_counter()
+        result = func(*args, **kwargs)
+        print(f"[perf] {func.__name__} took {time.perf_counter() - start:.6f}s")
+        return result
+    return wrapper
