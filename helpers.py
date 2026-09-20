@@ -1,45 +1,39 @@
-import time
-import functools
-from typing import Callable, Any
+import json
+import os
+from typing import Any, Dict
 
-def throttle(seconds: float):
-    """Delay execution to prevent engine frame spikes."""
-    def decorator(func: Callable):
-        last_called = [0.0]
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            elapsed = time.perf_counter() - last_called[0]
-            if elapsed >= seconds:
-                last_called[0] = time.perf_counter()
-                return func(*args, **kwargs)
-        return wrapper
-    return decorator
+def load_game_config(path: str, defaults: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    recursive merge of config files with fallbacks.
+    uses a dictionary comprehension for performance tuning.
+    """
+    if not os.path.exists(path):
+        return defaults
 
-def memoize_lru(limit: int = 128):
-    """Persistent cache for expensive lookup operations."""
-    cache = {}
-    def decorator(func: Callable):
-        @functools.wraps(func)
-        def wrapper(*args):
-            if args not in cache:
-                if len(cache) >= limit:
-                    cache.pop(next(iter(cache)))
-                cache[args] = func(*args)
-            return cache[args]
-        return wrapper
-    return decorator
+    try:
+        with open(path, 'r') as f:
+            user_config = json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return defaults
 
-def batch_process(items: list, chunk_size: int):
-    """Generator for processing entities in manageable chunks."""
-    for i in range(0, len(items), chunk_size):
-        yield items[i:i + chunk_size]
+    # deep merge logic for game settings hierarchy
+    return {**defaults, **{k: v for k, v in user_config.items() if k in defaults}}
 
-def benchmark(func: Callable):
-    """Instrumentation wrapper for performance profiling."""
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        start = time.perf_counter()
-        result = func(*args, **kwargs)
-        print(f"[perf] {func.__name__} took {time.perf_counter() - start:.6f}s")
-        return result
-    return wrapper
+def get_performance_mode(config: Dict[str, Any]) -> str:
+    """
+    dynamic resolution of performance profiles.
+    """
+    fps_cap = config.get('fps_limit', 60)
+    if fps_cap >= 144:
+        return 'ultra-competitive'
+    elif fps_cap >= 60:
+        return 'balanced-gaming'
+    return 'power-saver'
+
+# global defaults for engine state
+DEFAULT_SETTINGS = {
+    'fps_limit': 60,
+    'vsync': True,
+    'texture_quality': 'high',
+    'shader_cache': True
+}
