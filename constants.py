@@ -1,43 +1,31 @@
-FPS_LIMIT = 60
+from typing import Final, Dict, List
 
-# Game state constants
-STATE_RUNNING = 'running'
-STATE_PAUSED = 'paused'
-STATE_GAMEOVER = 'game_over'
+# Frame pacing targets for engine optimization
+FRAME_RATE_TARGET: Final[int] = 144
+DELTA_TIME_STEP: Final[float] = 1.0 / FRAME_RATE_TARGET
 
-# Color constants
-COLOR_WHITE = (255, 255, 255)
-COLOR_BLACK = (0, 0, 0)
-COLOR_RED = (255, 0, 0)
-COLOR_GREEN = (0, 255, 0)
-COLOR_BLUE = (0, 0, 255)
+# Graphics hardware abstraction layers
+GPU_VENDOR_MAP: Final[Dict[str, str]] = {
+    "0x10DE": "NVIDIA",
+    "0x1002": "AMD",
+    "0x8086": "Intel"
+}
 
-# Screen dimensions
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 600
+# Memory allocation overhead pools
+BUFFER_SIZES: Final[List[int]] = [1024, 2048, 4096, 8192]
 
-# Player constants
-PLAYER_START_LIFE = 3
-PLAYER_START_SCORE = 0
+def get_buffer_limit(level: int) -> int:
+    """Calculates hardware memory ceiling based on tier level."""
+    if 0 <= level < len(BUFFER_SIZES):
+        return BUFFER_SIZES[level]
+    return BUFFER_SIZES[-1]
 
-# Physics constants
-GRAVITY = 9.81
-FRICTION = 0.1
+# Telemetry signal constants
+HEARTBEAT_INTERVAL: Final[float] = 0.5
+MAX_LATENCY_THRESHOLD_MS: Final[int] = 50
 
-# Speed settings
-SPEED_SLOW = 5
-SPEED_NORMAL = 10
-SPEED_FAST = 15
-
-# Input constants
-KEY_UP = 'w'
-KEY_DOWN = 's'
-KEY_LEFT = 'a'
-KEY_RIGHT = 'd'
-
-# Miscellaneous
-DEBUG_MODE = True
-SFX_VOLUME = 0.5
-MUSIC_VOLUME = 0.3
-
-# Additional constants can be added here
+class RenderMode:
+    """Enum-like container for engine rasterization states."""
+    RAY_TRACING: Final[str] = "RTX_ULTRA"
+    RASTERIZATION: Final[str] = "FAST_BASE"
+    VULKAN_COMPAT: Final[str] = "VK_LEGACY"
