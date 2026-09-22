@@ -1,57 +1,53 @@
-import os
 import json
+import os
 from typing import Any, Dict
 
-DEFAULT_CONFIG: Dict[str, Any] = {
-    "target_fps": 60,
-    "enable_vsync": True,
-    "render_distance": 10,
-    "shadow_quality": "medium",
-    "buffer_size": 4096,
-    "metrics_port": 8000
-}
 
-class GameConfig:
-    def __init__(self, filepath: str = "config.json"):
-        self._filepath = filepath
-        self._file_data = self._load_file()
+class DynamicGameConfig:
+    """Dynamic performance configuration loader with environment overrides and defaults."""
 
-    def _load_file(self) -> Dict[str, Any]:
-        if os.path.exists(self._filepath):
+    DEFAULT_SPECS: Dict[str, Dict[str, Any]] = {
+        "target_fps": {"default": 60, "type": int},
+        "resolution_scale": {"default": 1.0, "type": float},
+        "ray_tracing": {"default": False, "type": bool},
+        "max_render_distance": {"default": 1024, "type": int},
+        "asset_cache_mb": {"default": 512, "type": int},
+    }
+
+    def __init__(self, file_path: str = "perf_settings.json"):
+        self._file_path = file_path
+        self._values: Dict[str, Any] = {}
+        self.load()
+
+    def load(self) -> None:
+        file_data = {}
+        if os.path.exists(self._file_path):
             try:
-                with open(self._filepath, "r") as f:
-                    return json.load(f)
-            except (json.JSONDecodeError, IOError):
-                pass
-        return {}
+                with open(self._file_path, "r", encoding="utf-8") as f:
+                    file_data = json.load(f)
+            except (json.JSONDecodeError, OSError):
+                file_data = {}
 
-    def get(self, key: str) -> Any:
-        env_key = f"GAME_{key.upper()}"
-        if env_key in os.environ:
-            val = os.environ[env_key]
-            default_val = DEFAULT_CONFIG.get(key)
-            if default_val is not None:
-                try:
-                    if isinstance(default_val, bool):
-                        return val.lower() in ("true", "1", "yes")
-                    return type(default_val)(val)
-                except ValueError:
-                    return val
-            return val
+        for key, spec in self.DEFAULT_SPECS.items():
+            env_key = f"GAME_PERF_{key.upper()}"
+            val = file_data.get(key, os.environ.get(env_key, spec["default"]))
+            self._values[key] = self._cast(val, spec["type"], spec["default"])
 
-        if key in self._file_data:
-            return self._file_data[key]
-
-        if key in DEFAULT_CONFIG:
-            return DEFAULT_CONFIG[key]
-
-        raise KeyError(f"Configuration key '{key}' not found")
+    def _cast(self, val: Any, target_type: type, fallback: Any) -> Any:
+        try:
+            if target_type is bool and isinstance(val, str):
+                return val.lower() in ("true", "1", "yes", "on")
+            return target_type(val)
+        except (ValueError, TypeError):
+            return fallback
 
     def __getattr__(self, name: str) -> Any:
-        try:
-            return self.get(name)
-        except KeyError as e:
-            raise AttributeError(f"'GameConfig' has no attribute '{name}'") from e
+        if name in self._values:
+            return self._values[name]
+        raise AttributeError(f"Configuration key '{name}' is not defined")
 
     def __getitem__(self, item: str) -> Any:
-        return self.get(item)
+        return getattr(self, item)
+
+    def as_dict(self) -> Dict[str, Any]:
+        return dict(self._values)
