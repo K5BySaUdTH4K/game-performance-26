@@ -1,47 +1,42 @@
 import time
-import random
-from typing import Callable, Any, Tuple, Type
+import functools
 
-class GameNetworkRetrier:
-    """
-    A tick-friendly network retry handler for live game loops.
-    Instead of blocking blindly, it manages retries with golden-ratio backoff.
-    """
-    def __init__(
-        self, 
-        max_attempts: int = 4, 
-        initial_delay: float = 0.016,  # roughly 1 frame at 60fps
-        max_delay: float = 1.0
-    ):
-        self.max_attempts = max_attempts
-        self.initial_delay = initial_delay
-        self.max_delay = max_delay
+class PerformanceHandler:
+    def __init__(self, threshold=0.016):
+        self.threshold = threshold
+        self.registry = {}
 
-    def execute(self, operation: Callable[[], Any], allowed_exceptions: Tuple[Type[Exception], ...]) -> Any:
-        attempt = 0
-        delay = self.initial_delay
-        
-        while True:
-            try:
-                return operation()
-            except allowed_exceptions as exc:
-                attempt += 1
-                if attempt >= self.max_attempts:
-                    raise exc
-                
-                # Golden-ratio escalation with game frame sync jitter
-                golden_ratio = 1.618
-                delay = min(delay * golden_ratio, self.max_delay)
-                jitter = random.uniform(0.9, 1.1)
-                actual_sleep = delay * jitter
-                
-                time.sleep(actual_sleep)
-
-def gaming_retry(max_attempts: int = 5, initial_delay: float = 0.033) -> Callable:
-    """Decorator wrapping the GameNetworkRetrier with network-specific errors."""
-    retrier = GameNetworkRetrier(max_attempts=max_attempts, initial_delay=initial_delay)
-    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            return retrier.execute(lambda: func(*args, **kwargs), (ConnectionError, TimeoutError))
+    def monitor(self, func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            start = time.perf_counter()
+            result = func(*args, **kwargs)
+            elapsed = time.perf_counter() - start
+            if elapsed > self.threshold:
+                self.registry[func.__name__] = elapsed
+            return result
         return wrapper
-    return decorator
+
+    def flush_metrics(self):
+        report = {k: f"{v:.4f}s" for k, v in self.registry.items()}
+        self.registry.clear()
+        return report
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pass
+
+def heavy_load_simulation():
+    return sum(i * i for i in range(1000000))
+
+handler = PerformanceHandler()
+
+@handler.monitor
+def execute_game_tick():
+    return heavy_load_simulation()
+
+if __name__ == "__main__":
+    execute_game_tick()
+    print(f"Performance bottlenecks: {handler.flush_metrics()}")
