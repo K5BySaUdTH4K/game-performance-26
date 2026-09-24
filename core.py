@@ -1,25 +1,32 @@
-from typing import Dict, Set
+import math
+from typing import Dict, Set, Tuple
 
+class Entity:
+    __slots__ = ('id', 'x', 'y', 'radius')
+    def __init__(self, entity_id: int, x: float, y: float, radius: float):
+        self.id = entity_id
+        self.x = x
+        self.y = y
+        self.radius = radius
 
-class SpatialGridOptimizer:
-    """Fast 2D spatial hashing for game entities using bit-packed coordinates."""
-
+class SpatialHashGrid:
+    """Fast 2D spatial grid using packed integer coordinates to bypass tuple allocation overhead."""
     def __init__(self, cell_size: int = 64):
         self.cell_size = cell_size
-        # Maps packed 64-bit coordinate integers to sets of entity IDs
+        # Maps packed integer coordinate to set of entity IDs
         self.grid: Dict[int, Set[int]] = {}
-        # Tracks entity last known packed positions to allow fast moves
-        self.entity_positions: Dict[int, int] = {}
+        # Tracks entity's last known packed coordinate for quick removal
+        self.entity_locations: Dict[int, int] = {}
 
     def _pack_coords(self, x: float, y: float) -> int:
-        # Shift coordinate space to positive-only quadrant for simple bitwise packing
-        grid_x = int(x // self.cell_size) + 0x7FFFFFFF
-        grid_y = int(y // self.cell_size) + 0x7FFFFFFF
-        return (grid_x << 32) | grid_y
+        cx = int(x) // self.cell_size
+        cy = int(y) // self.cell_size
+        # Pack 32-bit signed integers into a single 64-bit unsigned-like integer
+        return ((cx & 0xFFFFFFFF) << 32) | (cy & 0xFFFFFFFF)
 
-    def update_entity(self, entity_id: int, x: float, y: float) -> None:
-        new_key = self._pack_coords(x, y)
-        old_key = self.entity_positions.get(entity_id)
+    def update(self, entity: Entity) -> None:
+        new_key = self._pack_coords(entity.x, entity.y)
+        old_key = self.entity_locations.get(entity.id)
 
         if old_key == new_key:
             return
@@ -27,17 +34,17 @@ class SpatialGridOptimizer:
         if old_key is not None:
             cell = self.grid.get(old_key)
             if cell:
-                cell.discard(entity_id)
+                cell.discard(entity.id)
                 if not cell:
                     del self.grid[old_key]
 
         if new_key not in self.grid:
             self.grid[new_key] = set()
-        self.grid[new_key].add(entity_id)
-        self.entity_positions[entity_id] = new_key
+        self.grid[new_key].add(entity.id)
+        self.entity_locations[entity.id] = new_key
 
-    def remove_entity(self, entity_id: int) -> None:
-        old_key = self.entity_positions.pop(entity_id, None)
+    def remove(self, entity_id: int) -> None:
+        old_key = self.entity_locations.pop(entity_id, None)
         if old_key is not None:
             cell = self.grid.get(old_key)
             if cell:
@@ -45,21 +52,18 @@ class SpatialGridOptimizer:
                 if not cell:
                     del self.grid[old_key]
 
-    def get_nearby(self, x: float, y: float, radius: float) -> Set[int]:
-        nearby_entities: Set[int] = set()
-        min_x, max_x = x - radius, x + radius
-        min_y, max_y = y - radius, y + radius
+    def get_nearby(self, x: float, y: float, range_limit: float) -> Set[int]:
+        nearby: Set[int] = set()
+        start_x = int(x - range_limit) // self.cell_size
+        end_x = int(x + range_limit) // self.cell_size
+        start_y = int(y - range_limit) // self.cell_size
+        end_y = int(y + range_limit) // self.cell_size
 
-        min_gx = int(min_x // self.cell_size) + 0x7FFFFFFF
-        max_gx = int(max_x // self.cell_size) + 0x7FFFFFFF
-        min_gy = int(min_y // self.cell_size) + 0x7FFFFFFF
-        max_gy = int(max_y // self.cell_size) + 0x7FFFFFFF
-
-        for gx in range(min_gx, max_gx + 1):
-            shifted_gx = gx << 32
-            for gy in range(min_gy, max_gy + 1):
-                key = shifted_gx | gy
-                if key in self.grid:
-                    nearby_entities.update(self.grid[key])
-
-        return nearby_entities
+        for cx in range(start_x, end_x + 1):
+            shift_cx = (cx & 0xFFFFFFFF) << 32
+            for cy in range(start_y, end_y + 1):
+                key = shift_cx | (cy & 0xFFFFFFFF)
+                cell = self.grid.get(key)
+                if cell:
+                    nearby.update(cell)
+        return nearby
