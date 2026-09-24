@@ -1,74 +1,65 @@
-import array
-import math
-from typing import Iterator
+from typing import Dict, Set
 
 
-class ZeroAllocSpatialGrid:
-    """High-performance 2D spatial grid using flattened typed arrays for zero-alloc game updates."""
+class SpatialGridOptimizer:
+    """Fast 2D spatial hashing for game entities using bit-packed coordinates."""
 
-    __slots__ = ('cell_size', 'width', 'height', 'grid', 'counts', 'max_per_cell')
-
-    def __init__(self, width: int = 1920, height: int = 1080, cell_size: int = 64, max_per_cell: int = 16):
+    def __init__(self, cell_size: int = 64):
         self.cell_size = cell_size
-        self.width = math.ceil(width / cell_size)
-        self.height = math.ceil(height / cell_size)
-        self.max_per_cell = max_per_cell
-        total_cells = self.width * self.height
-        self.grid = array.array('i', [-1] * (total_cells * max_per_cell))
-        self.counts = array.array('H', [0] * total_cells)
+        # Maps packed 64-bit coordinate integers to sets of entity IDs
+        self.grid: Dict[int, Set[int]] = {}
+        # Tracks entity last known packed positions to allow fast moves
+        self.entity_positions: Dict[int, int] = {}
 
-    def clear(self) -> None:
-        for i in range(len(self.counts)):
-            self.counts[i] = 0
+    def _pack_coords(self, x: float, y: float) -> int:
+        # Shift coordinate space to positive-only quadrant for simple bitwise packing
+        grid_x = int(x // self.cell_size) + 0x7FFFFFFF
+        grid_y = int(y // self.cell_size) + 0x7FFFFFFF
+        return (grid_x << 32) | grid_y
 
-    def _hash(self, x: float, y: float) -> int:
-        cx = max(0, min(self.width - 1, int(x // self.cell_size)))
-        cy = max(0, min(self.height - 1, int(y // self.cell_size)))
-        return cy * self.width + cx
+    def update_entity(self, entity_id: int, x: float, y: float) -> None:
+        new_key = self._pack_coords(x, y)
+        old_key = self.entity_positions.get(entity_id)
 
-    def insert(self, entity_id: int, x: float, y: float) -> bool:
-        cell_idx = self._hash(x, y)
-        cnt = self.counts[cell_idx]
-        if cnt >= self.max_per_cell:
-            return False
-        offset = cell_idx * self.max_per_cell + cnt
-        self.grid[offset] = entity_id
-        self.counts[cell_idx] = cnt + 1
-        return True
+        if old_key == new_key:
+            return
 
-    def query_cell(self, x: float, y: float) -> Iterator[int]:
-        cell_idx = self._hash(x, y)
-        cnt = self.counts[cell_idx]
-        base = cell_idx * self.max_per_cell
-        for i in range(cnt):
-            yield self.grid[base + i]
+        if old_key is not None:
+            cell = self.grid.get(old_key)
+            if cell:
+                cell.discard(entity_id)
+                if not cell:
+                    del self.grid[old_key]
 
+        if new_key not in self.grid:
+            self.grid[new_key] = set()
+        self.grid[new_key].add(entity_id)
+        self.entity_positions[entity_id] = new_key
 
-class FrameBatchProcessor:
-    """Processes entity transforms in contiguous float dynamic buffers for cache locality."""
+    def remove_entity(self, entity_id: int) -> None:
+        old_key = self.entity_positions.pop(entity_id, None)
+        if old_key is not None:
+            cell = self.grid.get(old_key)
+            if cell:
+                cell.discard(entity_id)
+                if not cell:
+                    del self.grid[old_key]
 
-    __slots__ = ('capacity', 'count', 'positions', 'velocities')
+    def get_nearby(self, x: float, y: float, radius: float) -> Set[int]:
+        nearby_entities: Set[int] = set()
+        min_x, max_x = x - radius, x + radius
+        min_y, max_y = y - radius, y + radius
 
-    def __init__(self, capacity: int = 10000):
-        self.capacity = capacity
-        self.count = 0
-        self.positions = array.array('f', [0.0] * (capacity * 2))
-        self.velocities = array.array('f', [0.0] * (capacity * 2))
+        min_gx = int(min_x // self.cell_size) + 0x7FFFFFFF
+        max_gx = int(max_x // self.cell_size) + 0x7FFFFFFF
+        min_gy = int(min_y // self.cell_size) + 0x7FFFFFFF
+        max_gy = int(max_y // self.cell_size) + 0x7FFFFFFF
 
-    def add_entity(self, x: float, y: float, vx: float, vy: float) -> int:
-        if self.count >= self.capacity:
-            raise OverflowError("Frame batch entity capacity reached")
-        idx = self.count
-        self.positions[idx * 2] = x
-        self.positions[idx * 2 + 1] = y
-        self.velocities[idx * 2] = vx
-        self.velocities[idx * 2 + 1] = vy
-        self.count += 1
-        return idx
+        for gx in range(min_gx, max_gx + 1):
+            shifted_gx = gx << 32
+            for gy in range(min_gy, max_gy + 1):
+                key = shifted_gx | gy
+                if key in self.grid:
+                    nearby_entities.update(self.grid[key])
 
-    def step_physics(self, delta_time: float) -> None:
-        dt = float(delta_time)
-        pos = self.positions
-        vel = self.velocities
-        for i in range(self.count * 2):
-            pos[i] += vel[i] * dt
+        return nearby_entities
