@@ -1,31 +1,38 @@
-from typing import Final, Dict, List
+import math
+from typing import Final, Dict, Any
 
-# Frame pacing targets for engine optimization
-FRAME_RATE_TARGET: Final[int] = 144
-DELTA_TIME_STEP: Final[float] = 1.0 / FRAME_RATE_TARGET
+# gaming-performance-26 constants & normalization factors
 
-# Graphics hardware abstraction layers
-GPU_VENDOR_MAP: Final[Dict[str, str]] = {
-    "0x10DE": "NVIDIA",
-    "0x1002": "AMD",
-    "0x8086": "Intel"
+FRAME_TIME_BUDGET_MS: Final[float] = 16.6667
+
+PERFORMANCE_TIERS: Final[Dict[str, float]] = {
+    "ULTRA": 144.0,
+    "HIGH": 120.0,
+    "STABLE": 60.0,
+    "MINIMUM": 30.0
 }
 
-# Memory allocation overhead pools
-BUFFER_SIZES: Final[List[int]] = [1024, 2048, 4096, 8192]
+def calculate_delta_factor(fps: float) -> float:
+    """Calculates a multiplier based on target frame rate consistency."""
+    target = PERFORMANCE_TIERS.get("STABLE", 60.0)
+    if fps <= 0:
+        return 1.0
+    return math.sqrt(target / max(fps, 1.0))
 
-def get_buffer_limit(level: int) -> int:
-    """Calculates hardware memory ceiling based on tier level."""
-    if 0 <= level < len(BUFFER_SIZES):
-        return BUFFER_SIZES[level]
-    return BUFFER_SIZES[-1]
+class PerformanceMetrics:
+    """Storage for frame pacing statistics."""
+    def __init__(self, samples: list[float]):
+        self.samples = samples
+        self.avg_ms = sum(samples) / len(samples) if samples else 0.0
 
-# Telemetry signal constants
-HEARTBEAT_INTERVAL: Final[float] = 0.5
-MAX_LATENCY_THRESHOLD_MS: Final[int] = 50
+    def get_stutter_index(self) -> float:
+        if not self.samples:
+            return 0.0
+        variance = sum((x - self.avg_ms) ** 2 for x in self.samples) / len(self.samples)
+        return math.log1p(variance)
 
-class RenderMode:
-    """Enum-like container for engine rasterization states."""
-    RAY_TRACING: Final[str] = "RTX_ULTRA"
-    RASTERIZATION: Final[str] = "FAST_BASE"
-    VULKAN_COMPAT: Final[str] = "VK_LEGACY"
+FRAME_TYPES: Final[dict[str, str]] = {
+    "CPU_BOUND": "#ff4444",
+    "GPU_BOUND": "#4444ff",
+    "IO_WAIT": "#44ff44"
+}
