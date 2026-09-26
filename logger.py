@@ -1,33 +1,57 @@
+import math
+import sys
 import logging
-from logging.handlers import RotatingFileHandler
-import os
+from typing import Dict, Any, Union
 
-def get_performance_logger(name='game-perf'):
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
+class TelemetrySanitizer:
+    """Sanitizes edge-case metrics (NaN, Inf, negative values) in telemetry streams."""
     
-    log_path = os.path.join('logs', 'perf_metrics.log')
-    os.makedirs('logs', exist_ok=True)
-    
-    formatter = logging.Formatter(
-        '%(asctime)s | %(levelname)-8s | [%(name)s] | %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
-    )
+    @staticmethod
+    def sanitize_metric(val: Union[int, float], fallback: float = 0.0, min_val: float = 0.0) -> float:
+        try:
+            numeric_val = float(val)
+            if math.isnan(numeric_val) or math.isinf(numeric_val):
+                return fallback
+            return max(numeric_val, min_val)
+        except (ValueError, TypeError):
+            return fallback
 
-    file_handler = RotatingFileHandler(
-        log_path,
-        maxBytes=1024 * 1024 * 5,
-        backupCount=3
-    )
-    file_handler.setFormatter(formatter)
+class ResilienceFrameLogger:
+    """A telemetry logger resilient against anomalous GPU/CPU driver reporting."""
     
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(formatter)
-    
-    if not logger.handlers:
-        logger.addHandler(file_handler)
-        logger.addHandler(console_handler)
+    def __init__(self, stream=sys.stderr):
+        self.logger = logging.getLogger("GamePerformanceLogger")
+        self.logger.setLevel(logging.INFO)
+        handler = logging.StreamHandler(stream)
+        handler.setFormatter(logging.Formatter('[%(levelname)s] Telemetry: %(message)s'))
+        if not self.logger.handlers:
+            self.logger.addHandler(handler)
+        self._last_valid_fps = 60.0
+
+    def log_frame_metrics(self, raw_data: Dict[str, Any]) -> Dict[str, float]:
+        """Process and sanitize raw hardware performance readings."""
+        sanitized = {}
         
-    return logger
+        frame_time = TelemetrySanitizer.sanitize_metric(
+            raw_data.get('frame_time_ms'), fallback=16.67, min_val=0.001
+        )
+        
+        try:
+            calculated_fps = 1000.0 / frame_time
+            if calculated_fps > 10000.0:
+                raise ValueError("FPS out of plausible rendering bounds")
+        except (ZeroDivisionError, ValueError) as err:
+            self.logger.warning(f"Anomalous frame time ({frame_time}ms) caught: {err}")
+            calculated_fps = self._last_valid_fps
 
-perf_logger = get_performance_logger()
+        sanitized['frame_time_ms'] = round(frame_time, 3)
+        sanitized['fps'] = round(calculated_fps, 2)
+        sanitized['gpu_temp_c'] = TelemetrySanitizer.sanitize_metric(
+            raw_data.get('gpu_temp'), fallback=-1.0
+        )
+        
+        self._last_valid_fps = sanitized['fps']
+        self.logger.info(
+            f"FPS: {sanitized['fps']} | Frame Time: {sanitized['frame_time_ms']}ms | GPU Temp: {sanitized['gpu_temp_c']}C"
+        )
+        return sanitized
