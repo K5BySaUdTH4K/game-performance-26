@@ -1,33 +1,74 @@
 import os
 import json
-from typing import Any, Dict
+from pathlib import Path
+from typing import Any, Dict, Union
 
-class GameConfig:
-    DEFAULT_SETTINGS = {
-        "frame_rate": 144,
-        "resolution": [1920, 1080],
-        "vsync": True,
-        "gpu_acceleration": True
-    }
+DEFAULT_CONFIG: Dict[str, Any] = {
+    "target_fps": 144,
+    "resolution_scale": 1.0,
+    "enable_vsync": False,
+    "shadow_quality": "medium",
+    "telemetry": {
+        "sample_rate_hz": 60,
+        "buffer_size_mb": 128,
+        "log_draw_calls": True
+    },
+    "engine_flags": ["NO_THREAD_SYNC", "ASYNC_SHADERS"]
+}
 
-    def __init__(self, file_path: str = "settings.json"):
-        self.file_path = file_path
-        self.data = self._load_config()
+class CascadeConfig:
+    """Cascade configuration loader merging defaults with local files and env vars."""
 
-    def _load_config(self) -> Dict[str, Any]:
-        if not os.path.exists(self.file_path):
-            return self.DEFAULT_SETTINGS
+    def __init__(self, config_path: Union[str, Path, None] = None, env_prefix: str = "GPERF_"):
+        self._prefix = env_prefix
+        self._store = json.loads(json.dumps(DEFAULT_CONFIG))
+        if config_path and Path(config_path).exists():
+            self._merge_file(Path(config_path))
+        self._apply_env_overrides()
+
+    def _merge_file(self, path: Path) -> None:
         try:
-            with open(self.file_path, "r") as f:
+            with open(path, "r", encoding="utf-8") as f:
                 user_data = json.load(f)
-                return {**self.DEFAULT_SETTINGS, **user_data}
-        except (json.JSONDecodeError, IOError):
-            return self.DEFAULT_SETTINGS
+                self._recursive_update(self._store, user_data)
+        except (json.JSONDecodeError, OSError):
+            pass
 
-    def get(self, key: str, default: Any = None) -> Any:
-        return self.data.get(key, default)
+    def _recursive_update(self, target: Dict[str, Any], source: Dict[str, Any]) -> None:
+        for k, v in source.items():
+            if isinstance(v, dict) and k in target and isinstance(target[k], dict):
+                self._recursive_update(target[k], v)
+            else:
+                target[k] = v
 
-    def __getattr__(self, item: str) -> Any:
-        return self.data.get(item, self.DEFAULT_SETTINGS.get(item))
+    def _apply_env_overrides(self) -> None:
+        for env_key, env_val in os.environ.items():
+            if env_key.startswith(self._prefix):
+                clean_key = env_key[len(self._prefix):].lower()
+                self._inject_env_key(clean_key, env_val)
 
-settings = GameConfig()
+    def _inject_env_key(self, key_path: str, raw_val: str) -> None:
+        parts = key_path.split("__")
+        curr = self._store
+        for part in parts[:-1]:
+            if part not in curr or not isinstance(curr[part], dict):
+                curr[part] = {}
+            curr = curr[part]
+        try:
+            curr[parts[-1]] = json.loads(raw_val)
+        except (json.JSONDecodeError, TypeError):
+            curr[parts[-1]] = raw_val
+
+    def get(self, path: str, default: Any = None) -> Any:
+        curr = self._store
+        for k in path.split("."):
+            if isinstance(curr, dict) and k in curr:
+                curr = curr[k]
+            else:
+                return default
+        return curr
+
+    def __getattr__(self, name: str) -> Any:
+        if name in self._store:
+            return self._store[name]
+        raise AttributeError(f"No configuration key named '{name}'")
