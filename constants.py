@@ -1,38 +1,37 @@
-import math
-from typing import Final, Dict, Any
+from typing import Final, Dict, Tuple
 
-# gaming-performance-26 constants & normalization factors
+# Graphics engine constants for game-performance-26
+# Optimized for low-latency rendering pipelines
 
-FRAME_TIME_BUDGET_MS: Final[float] = 16.6667
+FPS_TARGET: Final[int] = 144
+BUFFER_SIZE: Final[int] = 4096
 
-PERFORMANCE_TIERS: Final[Dict[str, float]] = {
-    "ULTRA": 144.0,
-    "HIGH": 120.0,
-    "STABLE": 60.0,
-    "MINIMUM": 30.0
+RESOLUTION_PRESETS: Final[Dict[str, Tuple[int, int]]] = {
+    "LOW": (1280, 720),
+    "MED": (1920, 1080),
+    "HIGH": (2560, 1440),
+    "ULTRA": (3840, 2160)
 }
 
-def calculate_delta_factor(fps: float) -> float:
-    """Calculates a multiplier based on target frame rate consistency."""
-    target = PERFORMANCE_TIERS.get("STABLE", 60.0)
-    if fps <= 0:
-        return 1.0
-    return math.sqrt(target / max(fps, 1.0))
+def get_frame_time_budget(fps: int = FPS_TARGET) -> float:
+    """
+    Calculate frame budget in milliseconds.
 
-class PerformanceMetrics:
-    """Storage for frame pacing statistics."""
-    def __init__(self, samples: list[float]):
-        self.samples = samples
-        self.avg_ms = sum(samples) / len(samples) if samples else 0.0
+    Args:
+        fps: The desired frame rate.
 
-    def get_stutter_index(self) -> float:
-        if not self.samples:
-            return 0.0
-        variance = sum((x - self.avg_ms) ** 2 for x in self.samples) / len(self.samples)
-        return math.log1p(variance)
+    Returns:
+        float: Duration of a single frame in milliseconds.
+    """
+    return 1000.0 / fps
 
-FRAME_TYPES: Final[dict[str, str]] = {
-    "CPU_BOUND": "#ff4444",
-    "GPU_BOUND": "#4444ff",
-    "IO_WAIT": "#44ff44"
-}
+class EngineStates:
+    """
+    Namespace for global engine state identifiers.
+    """
+    INITIALIZING: Final[str] = "INIT"
+    RUNNING: Final[str] = "RUN"
+    PAUSED: Final[str] = "PAUSE"
+    SHUTDOWN: Final[str] = "KILL"
+
+DEFAULT_ASSET_PATH: Final[str] = "./assets/vram_cache/"
