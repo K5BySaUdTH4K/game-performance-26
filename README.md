@@ -1,62 +1,46 @@
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-
 # game-performance-26
 
-`game-performance-26` is a lightweight Python telemetry library designed to track real-time frame rates, frametimes, and system resource utilization during active gameplay sessions. It compiles low-overhead benchmark logs into actionable visual reports to help developers pinpoint rendering bottlenecks and engine hitches instantly.
+`game-performance-26` is a lightweight Python toolkit designed to monitor and optimize system resources during gaming sessions. It helps users track frame time consistency, CPU/GPU utilization, and background process interference in real-time.
 
-## Features
+### Key Features
 
-- **High-Precision Frametime Analysis:** Captures 1% low and 0.1% low FPS metrics alongside frame duration variances with sub-millisecond accuracy.
-- **Hardware Telemetry Monitoring:** Tracks CPU per-core load, VRAM allocation, and GPU thermals during execution without impacting rendering threads.
-- **Automated Report Generation:** Automatically outputs aggregated performance logs into standalone HTML charts and structured JSON datasets upon session completion.
-- **Dynamic Event Tagging:** Allows developers to programmatically flag specific in-game events, such as asset loading or explosion effects, to evaluate localized frame drops.
+*   **Real-time Telemetry:** Stream frame rate and hardware thermals directly to the console or an external dashboard.
+*   **Process Governor:** Automatically detects intensive background tasks and lowers their CPU priority while games are active.
+*   **Thermal Throttling Alerts:** Configurable logging for temperature spikes that trigger performance drops.
+*   **Low-Overhead Profiling:** Built using `psutil` and `cProfile` to ensure the tool consumes less than 1% of total system resources.
 
-## Installation
+### Installation
 
-Install the package via pip:
-
-```bash
-pip install game-performance-26
-```
-
-Or install the latest development build directly from the repository:
+Requires Python 3.8+ and administrative privileges to manage process priorities.
 
 ```bash
+# Clone the repository
 git clone https://github.com/Developer/game-performance-26.git
 cd game-performance-26
-pip install -e .
+
+# Install dependencies
+pip install -r requirements.txt
 ```
 
-## Quick Start
+### Basic Usage
 
-Integrate the performance profiler into your game loop:
+To begin monitoring your active game process and apply optimization presets, execute the following:
 
-```python
-from game_performance import TelemetryTracker
-
-# Initialize the tracker
-tracker = TelemetryTracker(app_name="Demo Engine", target_fps=60)
-tracker.start_session()
-
-# Main game loop
-while game_is_running:
-    tracker.begin_frame()
-    
-    # Run engine logic and rendering
-    update_game_physics()
-    render_scene()
-    
-    # Tag high-stress events for profiling
-    if level_loading:
-        tracker.tag_event("Level_Transition")
-        
-    tracker.end_frame()
-
-# Finalize and export session report
-tracker.end_session()
-tracker.export_report(output_dir="./perf_logs", format="html")
+```bash
+# Run with default monitoring settings
+python main.py --target "Game.exe" --optimize
 ```
 
-## License
+To view a detailed report of system resource usage after a session, use:
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for full details.
+```bash
+python main.py --report session_logs.json
+```
+
+### Configuration
+You can adjust the polling interval and target thresholds by editing the `config.yaml` file located in the root directory. Setting the `polling_rate` too low may increase CPU overhead.
+
+### License
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
