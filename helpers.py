@@ -1,39 +1,44 @@
-import json
-import os
-from typing import Any, Dict
+import time
+import functools
+import logging
 
-def load_game_config(path: str, defaults: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    recursive merge of config files with fallbacks.
-    uses a dictionary comprehension for performance tuning.
-    """
-    if not os.path.exists(path):
-        return defaults
+logger = logging.getLogger('game-performance-26')
 
-    try:
-        with open(path, 'r') as f:
-            user_config = json.load(f)
-    except (json.JSONDecodeError, IOError):
-        return defaults
+def frame_rate_throttle(target_fps: float):
+    interval = 1.0 / target_fps
+    def decorator(func):
+        last_call = 0.0
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            nonlocal last_call
+            elapsed = time.perf_counter() - last_call
+            if elapsed < interval:
+                time.sleep(interval - elapsed)
+            result = func(*args, **kwargs)
+            last_call = time.perf_counter()
+            return result
+        return wrapper
+    return decorator
 
-    # deep merge logic for game settings hierarchy
-    return {**defaults, **{k: v for k, v in user_config.items() if k in defaults}}
+def profile_execution(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        start = time.perf_counter()
+        result = func(*args, **kwargs)
+        duration = time.perf_counter() - start
+        if duration > 0.016:
+            logger.warning(f'{func.__name__} stutter detected: {duration:.4f}s')
+        return result
+    return wrapper
 
-def get_performance_mode(config: Dict[str, Any]) -> str:
-    """
-    dynamic resolution of performance profiles.
-    """
-    fps_cap = config.get('fps_limit', 60)
-    if fps_cap >= 144:
-        return 'ultra-competitive'
-    elif fps_cap >= 60:
-        return 'balanced-gaming'
-    return 'power-saver'
+class ResourceRegistry:
+    _storage = {}
 
-# global defaults for engine state
-DEFAULT_SETTINGS = {
-    'fps_limit': 60,
-    'vsync': True,
-    'texture_quality': 'high',
-    'shader_cache': True
-}
+    @classmethod
+    def register(cls, key: str, resource):
+        cls._storage[key] = resource
+
+    @classmethod
+    def clear_stale(cls, threshold: float):
+        current_time = time.time()
+        cls._storage = {k: v for k, v in cls._storage.items() if current_time - v.last_accessed < threshold}
