@@ -1,37 +1,38 @@
-from typing import Final, Dict, Tuple
+import math
+from typing import Final
 
-# Graphics engine constants for game-performance-26
-# Optimized for low-latency rendering pipelines
+# Precomputed lookup tables for expensive calculations
+# Using slots-like static mapping for performance
+_SIN_TABLE: Final[list[float]] = [math.sin(i * 0.0174533) for i in range(360)]
+_COS_TABLE: Final[list[float]] = [math.cos(i * 0.0174533) for i in range(360)]
 
-FPS_TARGET: Final[int] = 144
-BUFFER_SIZE: Final[int] = 4096
+class TrigCache:
+    @staticmethod
+    def fast_sin(degrees: int) -> float:
+        return _SIN_TABLE[degrees % 360]
 
-RESOLUTION_PRESETS: Final[Dict[str, Tuple[int, int]]] = {
-    "LOW": (1280, 720),
-    "MED": (1920, 1080),
-    "HIGH": (2560, 1440),
-    "ULTRA": (3840, 2160)
-}
+    @staticmethod
+    def fast_cos(degrees: int) -> float:
+        return _COS_TABLE[degrees % 360]
 
-def get_frame_time_budget(fps: int = FPS_TARGET) -> float:
-    """
-    Calculate frame budget in milliseconds.
+# Game engine performance thresholds
+MAX_FRAME_DELTA: Final[float] = 0.033
+RENDER_BATCH_SIZE: Final[int] = 128
+MEMORY_BUFFER_CHUNK: Final[int] = 1024 * 64
 
-    Args:
-        fps: The desired frame rate.
+# Bitmask flags for entity component system
+FLAG_ACTIVE: Final[int] = 1 << 0
+FLAG_VISIBLE: Final[int] = 1 << 1
+FLAG_PHYSICS: Final[int] = 1 << 2
+FLAG_TICKABLE: Final[int] = 1 << 3
 
-    Returns:
-        float: Duration of a single frame in milliseconds.
-    """
-    return 1000.0 / fps
+# Internal constants for heavy calculations
+GRAVITY_CONSTANT: Final[float] = 9.80665
+DRAG_COEFFICIENT: Final[float] = 0.47
 
-class EngineStates:
-    """
-    Namespace for global engine state identifiers.
-    """
-    INITIALIZING: Final[str] = "INIT"
-    RUNNING: Final[str] = "RUN"
-    PAUSED: Final[str] = "PAUSE"
-    SHUTDOWN: Final[str] = "KILL"
-
-DEFAULT_ASSET_PATH: Final[str] = "./assets/vram_cache/"
+__all__ = [
+    'TrigCache', 'MAX_FRAME_DELTA', 'RENDER_BATCH_SIZE',
+    'MEMORY_BUFFER_CHUNK', 'FLAG_ACTIVE', 'FLAG_VISIBLE',
+    'FLAG_PHYSICS', 'FLAG_TICKABLE', 'GRAVITY_CONSTANT',
+    'DRAG_COEFFICIENT'
+]
