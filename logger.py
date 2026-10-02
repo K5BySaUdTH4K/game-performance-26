@@ -2,32 +2,36 @@ import logging
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
-class PerformanceLogger:
-    def __init__(self, log_file: str = 'game_perf.log'):
-        self.path = Path(log_file)
-        self.logger = logging.getLogger('game_performance_26')
-        self.logger.setLevel(logging.DEBUG)
-        
-        formatter = logging.Formatter(
-            '%(asctime)s | [%(levelname)s] | %(message)s',
-            datefmt='%H:%M:%S'
-        )
-        
-        handler = RotatingFileHandler(
-            self.path, 
-            maxBytes=1024 * 1024 * 5, 
+LOG_DIR = Path('logs')
+LOG_DIR.mkdir(exist_ok=True)
+
+class PerformanceFormatter(logging.Formatter):
+    """Colorful and precise logs for game-performance-26"""
+    formats = {
+        logging.DEBUG: "[DEBUG] %(asctime)s | %(name)s: %(message)s",
+        logging.INFO: "[INFO] %(asctime)s | %(message)s",
+        logging.ERROR: "[FATAL] %(asctime)s | ERROR @ %(funcName)s: %(message)s"
+    }
+
+    def format(self, record):
+        log_fmt = self.formats.get(record.levelno, self.formats[logging.INFO])
+        return logging.Formatter(log_fmt, datefmt='%H:%M:%S').format(record)
+
+def setup_logger(name: str):
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
+
+    if not logger.handlers:
+        file_handler = RotatingFileHandler(
+            LOG_DIR / f'{name}.log', 
+            maxBytes=5_000_000, 
             backupCount=3
         )
-        handler.setFormatter(formatter)
-        self.logger.addHandler(handler)
+        file_handler.setFormatter(PerformanceFormatter())
+        logger.addHandler(file_handler)
         
-        # Add a console stream for dev visibility
         console = logging.StreamHandler()
-        console.setFormatter(formatter)
-        self.logger.addHandler(console)
+        console.setFormatter(PerformanceFormatter())
+        logger.addHandler(console)
 
-    def get(self):
-        return self.logger
-
-def setup_logger(name: str = 'perf_log'):
-    return PerformanceLogger(f'{name}.log').get()
+    return logger
