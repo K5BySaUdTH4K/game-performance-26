@@ -1,44 +1,40 @@
-import time
 import functools
-import logging
+import collections
 
-logger = logging.getLogger('game-performance-26')
+class PerformanceOptimizer:
+    """Cache-heavy decorator suite for frame-rate stabilization."""
+    def __init__(self, limit=1024):
+        self.limit = limit
+        self.storage = collections.OrderedDict()
 
-def frame_rate_throttle(target_fps: float):
-    interval = 1.0 / target_fps
-    def decorator(func):
-        last_call = 0.0
+    def __call__(self, func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            nonlocal last_call
-            elapsed = time.perf_counter() - last_call
-            if elapsed < interval:
-                time.sleep(interval - elapsed)
+            key = (func.__name__, args, frozenset(kwargs.items()))
+            if key in self.storage:
+                self.storage.move_to_end(key)
+                return self.storage[key]
+            
             result = func(*args, **kwargs)
-            last_call = time.perf_counter()
+            self.storage[key] = result
+            if len(self.storage) > self.limit:
+                self.storage.popitem(last=False)
             return result
         return wrapper
-    return decorator
 
-def profile_execution(func):
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        start = time.perf_counter()
-        result = func(*args, **kwargs)
-        duration = time.perf_counter() - start
-        if duration > 0.016:
-            logger.warning(f'{func.__name__} stutter detected: {duration:.4f}s')
-        return result
-    return wrapper
+optimizer = PerformanceOptimizer()
 
-class ResourceRegistry:
-    _storage = {}
+@optimizer
+def calculate_collision_bounds(vertices):
+    """Fast geometric bounds calculation using lazy caching."""
+    min_x = min(v[0] for v in vertices)
+    max_x = max(v[0] for v in vertices)
+    min_y = min(v[1] for v in vertices)
+    max_y = max(v[1] for v in vertices)
+    return (min_x, min_y, max_x, max_y)
 
-    @classmethod
-    def register(cls, key: str, resource):
-        cls._storage[key] = resource
-
-    @classmethod
-    def clear_stale(cls, threshold: float):
-        current_time = time.time()
-        cls._storage = {k: v for k, v in cls._storage.items() if current_time - v.last_accessed < threshold}
+def batch_process_entities(entities, transform_func):
+    """Generator-based batch processing for memory efficiency."""
+    for entity in entities:
+        if hasattr(entity, 'active') and entity.active:
+            yield transform_func(entity)
