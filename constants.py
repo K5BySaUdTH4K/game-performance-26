@@ -1,38 +1,24 @@
-import math
-from typing import Final
+from enum import Enum, unique
 
-# Precomputed lookup tables for expensive calculations
-# Using slots-like static mapping for performance
-_SIN_TABLE: Final[list[float]] = [math.sin(i * 0.0174533) for i in range(360)]
-_COS_TABLE: Final[list[float]] = [math.cos(i * 0.0174533) for i in range(360)]
+@unique
+class PerformanceTier(Enum):
+    POTATO = 0
+    CONSOLE = 1
+    PC_MASTER_RACE = 2
 
-class TrigCache:
-    @staticmethod
-    def fast_sin(degrees: int) -> float:
-        return _SIN_TABLE[degrees % 360]
+CACHE_LIMIT_MB = 1024
+FRAME_TARGETS = {PerformanceTier.POTATO: 30, PerformanceTier.CONSOLE: 60, PerformanceTier.PC_MASTER_RACE: 144}
 
-    @staticmethod
-    def fast_cos(degrees: int) -> float:
-        return _COS_TABLE[degrees % 360]
+SHADERS_DIR = "./assets/shaders"
+TEXTURE_COMPRESSION_LEVEL = 9
 
-# Game engine performance thresholds
-MAX_FRAME_DELTA: Final[float] = 0.033
-RENDER_BATCH_SIZE: Final[int] = 128
-MEMORY_BUFFER_CHUNK: Final[int] = 1024 * 64
+BUFFER_SIZES = (1024, 2048, 4096)
 
-# Bitmask flags for entity component system
-FLAG_ACTIVE: Final[int] = 1 << 0
-FLAG_VISIBLE: Final[int] = 1 << 1
-FLAG_PHYSICS: Final[int] = 1 << 2
-FLAG_TICKABLE: Final[int] = 1 << 3
+def get_frame_budget(tier: PerformanceTier) -> float:
+    """Calculates ms per frame budget based on tier."""
+    return 1000.0 / FRAME_TARGETS.get(tier, 30)
 
-# Internal constants for heavy calculations
-GRAVITY_CONSTANT: Final[float] = 9.80665
-DRAG_COEFFICIENT: Final[float] = 0.47
+GLOBAL_TIMEOUT_SECONDS = 5.5
+MAX_CONCURRENT_THREADS = 8
 
-__all__ = [
-    'TrigCache', 'MAX_FRAME_DELTA', 'RENDER_BATCH_SIZE',
-    'MEMORY_BUFFER_CHUNK', 'FLAG_ACTIVE', 'FLAG_VISIBLE',
-    'FLAG_PHYSICS', 'FLAG_TICKABLE', 'GRAVITY_CONSTANT',
-    'DRAG_COEFFICIENT'
-]
+DEBUG_LOG_PATH = "/var/log/game_perf.log"
