@@ -1,37 +1,34 @@
 import logging
+import os
 from logging.handlers import RotatingFileHandler
-from pathlib import Path
 
-LOG_DIR = Path('logs')
-LOG_DIR.mkdir(exist_ok=True)
-
-class PerformanceFormatter(logging.Formatter):
-    """Colorful and precise logs for game-performance-26"""
-    formats = {
-        logging.DEBUG: "[DEBUG] %(asctime)s | %(name)s: %(message)s",
-        logging.INFO: "[INFO] %(asctime)s | %(message)s",
-        logging.ERROR: "[FATAL] %(asctime)s | ERROR @ %(funcName)s: %(message)s"
-    }
-
-    def format(self, record):
-        log_fmt = self.formats.get(record.levelno, self.formats[logging.INFO])
-        return logging.Formatter(log_fmt, datefmt='%H:%M:%S').format(record)
-
-def setup_logger(name: str):
+def setup_logger(name: str, log_file: str = 'game_perf.log'):
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
+    
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
 
-    if not logger.handlers:
-        file_handler = RotatingFileHandler(
-            LOG_DIR / f'{name}.log', 
-            maxBytes=5_000_000, 
-            backupCount=3
-        )
-        file_handler.setFormatter(PerformanceFormatter())
-        logger.addHandler(file_handler)
-        
-        console = logging.StreamHandler()
-        console.setFormatter(PerformanceFormatter())
-        logger.addHandler(console)
-
+    # Rotation logic: 5MB per file, keep 3 backups
+    handler = RotatingFileHandler(
+        log_file, 
+        maxBytes=5 * 1024 * 1024, 
+        backupCount=3
+    )
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    
+    # Console output for dev visibility
+    console = logging.StreamHandler()
+    console.setFormatter(formatter)
+    logger.addHandler(console)
+    
     return logger
+
+# Singleton-ish approach for game performance metrics
+performance_logger = setup_logger('perf_tracker')
+
+def log_frame_time(delta: float):
+    if delta > 0.016:
+        performance_logger.warning(f'Frame spike detected: {delta:.4f}s')
