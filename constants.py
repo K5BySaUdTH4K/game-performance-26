@@ -1,24 +1,31 @@
-from enum import Enum, unique
+import enum
+from typing import Final
 
-@unique
-class PerformanceTier(Enum):
+class PerformanceTier(enum.IntEnum):
     POTATO = 0
     CONSOLE = 1
     PC_MASTER_RACE = 2
+    NASA_SUPERCOMPUTER = 3
 
-CACHE_LIMIT_MB = 1024
-FRAME_TARGETS = {PerformanceTier.POTATO: 30, PerformanceTier.CONSOLE: 60, PerformanceTier.PC_MASTER_RACE: 144}
+CACHE_TTL: Final[int] = 3600
+MAX_FRAME_BUFFER: Final[int] = 144
+TARGET_TICK_RATE: Final[int] = 64
 
-SHADERS_DIR = "./assets/shaders"
-TEXTURE_COMPRESSION_LEVEL = 9
+RENDER_ENGINE_MAP: Final[dict[str, str]] = {
+    "dx11": "DirectX11",
+    "dx12": "DirectX12",
+    "vk": "Vulkan",
+    "gl": "OpenGL"
+}
 
-BUFFER_SIZES = (1024, 2048, 4096)
+RETRY_ATTEMPTS: Final[int] = 3
+DEFAULT_ASSET_PATH: Final[str] = "./assets/core"
 
-def get_frame_budget(tier: PerformanceTier) -> float:
-    """Calculates ms per frame budget based on tier."""
-    return 1000.0 / FRAME_TARGETS.get(tier, 30)
-
-GLOBAL_TIMEOUT_SECONDS = 5.5
-MAX_CONCURRENT_THREADS = 8
-
-DEBUG_LOG_PATH = "/var/log/game_perf.log"
+def get_buffer_limit(tier: PerformanceTier) -> int:
+    limits = {
+        PerformanceTier.POTATO: 30,
+        PerformanceTier.CONSOLE: 60,
+        PerformanceTier.PC_MASTER_RACE: 144,
+        PerformanceTier.NASA_SUPERCOMPUTER: 999
+    }
+    return limits.get(tier, 60)
