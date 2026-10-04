@@ -1,45 +1,31 @@
-import time
-import functools
-from collections import deque
+import collections
+from typing import Generator, Callable, Any, Dict
 
-class FrameProcessor:
-    def __init__(self, capacity=60):
-        self.history = deque(maxlen=capacity)
-        self._enabled = True
+def coroutine(func: Callable[..., Generator[None, Any, None]]) -> Callable[..., Generator[None, Any, None]]:
+    def start(*args: Any, **kwargs: Any) -> Generator[None, Any, None]:
+        g = func(*args, **kwargs)
+        next(g)
+        return g
+    return start
 
-    def __call__(self, func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            if not self._enabled:
-                return func(*args, **kwargs)
-            start = time.perf_counter()
-            result = func(*args, **kwargs)
-            self.history.append(time.perf_counter() - start)
-            return result
-        return wrapper
+@coroutine
+def anomaly_detector(threshold_factor: float, sink: Generator[None, Dict[str, Any], None]) -> Generator[None, float, None]:
+    history = collections.deque(maxlen=60)
+    while True:
+        duration = yield
+        if not history:
+            history.append(duration)
+            sink.send({"duration": duration, "is_anomaly": False, "baseline": duration})
+            continue
+        baseline = sum(history) / len(history)
+        is_anomaly = duration > (baseline * threshold_factor)
+        if not is_anomaly:
+            history.append(duration)
+        sink.send({"duration": duration, "is_anomaly": is_anomaly, "baseline": baseline})
 
-    @property
-    def average_latency(self):
-        return sum(self.history) / len(self.history) if self.history else 0
-
-    def toggle_telemetry(self, state: bool):
-        self._enabled = state
-
-def batch_process(data, chunk_size=1024):
-    for i in range(0, len(data), chunk_size):
-        yield data[i:i + chunk_size]
-
-def sanitize_frame_data(payload: dict) -> dict:
-    return {k: v for k, v in payload.items() if v is not None}
-
-class PerformanceEngine:
-    def __init__(self):
-        self.telemetry = FrameProcessor()
-        self.pipeline = []
-
-    def execute(self, task, *args):
-        try:
-            return task(*args)
-        except Exception as e:
-            print(f'Engine failure: {e}')
-            return None
+@coroutine
+def metric_aggregator() -> Generator[None, Dict[str, Any], None]:
+    while True:
+        data = yield
+        if data["is_anomaly"]:
+            print(f"[anomaly] Frame took {data['duration']:.2f}ms (baseline: {data['baseline']:.2f}ms)")
