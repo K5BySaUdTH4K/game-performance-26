@@ -1,39 +1,36 @@
-import time
+import asyncio
 import random
-import functools
-from typing import Callable, Any, Type, Tuple
+import time
+from typing import Callable, Any, TypeVar, cast
 
-class GameOverException(Exception):
-    """Raised when all retries (lives) are exhausted."""
+T = TypeVar("T", bound=Callable[..., Any])
+
+class NetworkDegradationError(Exception):
+    """Raised when game server network health is critically degraded."""
     pass
 
-def respawn_retry(
-    lives: int = 3,
-    base_cooldown: float = 0.5,
-    backoff_multiplier: float = 2.0,
-    exceptions: Tuple[Type[BaseException], ...] = (ConnectionError, TimeoutError)
-) -> Callable:
+class AdaptiveRetry:
     """
-    Decorator that retries network actions using a gaming 'respawn' metaphor.
-    Includes exponential cooldown with random jitter to mimic network packet recovery.
+    Game-loop-friendly adaptive retry mechanism.
+    Adapts delay dynamically using simulated network metrics and golden ratio backoff.
     """
-    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-        @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            cooldown = base_cooldown
-            for life in range(1, lives + 1):
+    def __init__(self, max_attempts: int = 4, base_ping_ms: float = 50.0):
+        self.max_attempts = max_attempts
+        self.base_ping = base_ping_ms / 1000.0  # Convert to seconds
+
+    def __call__(self, func: T) -> T:
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
+            last_error = None
+            for attempt in range(1, self.max_attempts + 1):
+                start_time = time.perf_counter()
                 try:
-                    return func(*args, **kwargs)
-                except exceptions as err:
-                    if life == lives:
-                        raise GameOverException(
-                            f"Failed '{func.__name__}' after {lives} attempts. Connection lost."
-                        ) from err
+                    return await func(*args, **kwargs)
+                except Exception as exc:
+                    last_error = exc
+                    elapsed = time.perf_counter() - start_time
                     
-                    # Apply exponential backoff with a bit of jitter (chaos)
-                    jitter = random.uniform(0.8, 1.2)
-                    sleep_time = cooldown * jitter
-                    time.sleep(sleep_time)
-                    cooldown *= backoff_multiplier
-        return wrapper
-    return decorator
+                    # Chaotic backoff: base ping * golden ratio^attempt * structural jitter
+                    golden_ratio = 1.618
+                    chaos_factor = random.uniform(0.8, 1.2)
+                    
+                    # Add penalty based on actual latency of the
