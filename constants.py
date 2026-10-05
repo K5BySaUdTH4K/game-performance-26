@@ -1,31 +1,40 @@
-import enum
-from typing import Final
+import math
+from typing import Final, Dict, Tuple
 
-class PerformanceTier(enum.IntEnum):
-    POTATO = 0
-    CONSOLE = 1
-    PC_MASTER_RACE = 2
-    NASA_SUPERCOMPUTER = 3
+# Precomputed lookup tables for expensive runtime math
+# Memory trade-off for CPU cycles in frame-critical updates
 
-CACHE_TTL: Final[int] = 3600
-MAX_FRAME_BUFFER: Final[int] = 144
-TARGET_TICK_RATE: Final[int] = 64
+TABLE_SIZE: Final[int] = 1024
 
-RENDER_ENGINE_MAP: Final[dict[str, str]] = {
-    "dx11": "DirectX11",
-    "dx12": "DirectX12",
-    "vk": "Vulkan",
-    "gl": "OpenGL"
+SIN_LOOKUP: Final[Tuple[float, ...]] = tuple(
+    math.sin(2 * math.pi * i / TABLE_SIZE) for i in range(TABLE_SIZE)
+)
+
+COS_LOOKUP: Final[Tuple[float, ...]] = tuple(
+    math.cos(2 * math.pi * i / TABLE_SIZE) for i in range(TABLE_SIZE)
+)
+
+def fast_sin(theta: float) -> float:
+    """Index-based trigonometric approximation for game loops."""
+    idx = int((theta / (2 * math.pi)) * TABLE_SIZE) % TABLE_SIZE
+    return SIN_LOOKUP[idx]
+
+def fast_cos(theta: float) -> float:
+    """Index-based trigonometric approximation for game loops."""
+    idx = int((theta / (2 * math.pi)) * TABLE_SIZE) % TABLE_SIZE
+    return COS_LOOKUP[idx]
+
+# Cache-friendly spatial constants
+GRID_SIZE: Final[int] = 64
+TILE_DIM: Final[int] = 32
+
+ENTITY_POOL_LIMIT: Final[int] = 512
+
+PHYSICS_TICK_RATE: Final[float] = 1.0 / 60.0
+
+LOG_LEVEL_MAP: Final[Dict[str, int]] = {
+    "DEBUG": 10,
+    "INFO": 20,
+    "WARN": 30,
+    "ERROR": 40
 }
-
-RETRY_ATTEMPTS: Final[int] = 3
-DEFAULT_ASSET_PATH: Final[str] = "./assets/core"
-
-def get_buffer_limit(tier: PerformanceTier) -> int:
-    limits = {
-        PerformanceTier.POTATO: 30,
-        PerformanceTier.CONSOLE: 60,
-        PerformanceTier.PC_MASTER_RACE: 144,
-        PerformanceTier.NASA_SUPERCOMPUTER: 999
-    }
-    return limits.get(tier, 60)
