@@ -1,31 +1,39 @@
 import time
-from typing import Generator
+import threading
+from typing import Dict, Any
 
-class PrecisionPacer:
-    """Adaptive hybrid spin-lock frame rate controller with drift correction."""
-    def __init__(self, target_fps: float):
+class PerformanceEngine:
+    def __init__(self, target_fps: int = 60):
         self.target_frame_time = 1.0 / target_fps
-        self.spin_threshold = 0.0015
-        self.accumulated_drift = 0.0
-        self.last_tick = time.perf_counter()
+        self.metrics: Dict[str, Any] = {}
+        self._lock = threading.Lock()
 
-    def tick(self) -> Generator[float, None, None]:
-        """Generates precise frame delta times while maintaining target pace."""
-        while True:
-            now = time.perf_counter()
-            adjusted_target = self.target_frame_time - self.accumulated_drift
-            elapsed = now - self.last_tick
-            remaining = adjusted_target - elapsed
+    def monitor_tick(self, func):
+        def wrapper(*args, **kwargs):
+            start = time.perf_counter()
+            result = func(*args, **kwargs)
+            duration = time.perf_counter() - start
+            with self._lock:
+                self.metrics[func.__name__] = duration
+            return result
+        return wrapper
 
-            if remaining > 0:
-                if remaining > self.spin_threshold:
-                    time.sleep(remaining - self.spin_threshold)
-                
-                while time.perf_counter() - self.last_tick < adjusted_target:
-                    pass
+    def cleanup_resources(self):
+        with self._lock:
+            self.metrics.clear()
 
-            actual_now = time.perf_counter()
-            dt = actual_now - self.last_tick
-            self.accumulated_drift = dt - self.target_frame_time
-            self.last_tick = actual_now
-            yield dt
+class FrameManager:
+    @staticmethod
+    def sync_frame_rate(start_time: float, engine: PerformanceEngine):
+        elapsed = time.perf_counter() - start_time
+        sleep_time = engine.target_frame_time - elapsed
+        if sleep_time > 0:
+            time.sleep(sleep_time)
+
+def initialize_game_core():
+    engine = PerformanceEngine()
+    return engine
+
+if __name__ == '__main__':
+    engine = initialize_game_core()
+    print(f'Game engine initialized with target: {1/engine.target_frame_time}fps')
