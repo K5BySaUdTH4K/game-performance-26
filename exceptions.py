@@ -1,29 +1,32 @@
 class PerformanceThresholdError(Exception):
-    """Raised when frame time budget is exceeded."""
+    """Raised when game frame budget is exceeded."""
     def __init__(self, frame_time, threshold):
-        self.msg = f'Critical lag: {frame_time}ms > {threshold}ms'
-        super().__init__(self.msg)
+        self.message = f"Frame time {frame_time:.4f}ms exceeds {threshold}ms limit"
+        super().__init__(self.message)
 
-class ResourceLeakError(Exception):
-    """Raised when memory heap growth is erratic."""
-    pass
+class ResourcePoolExhaustion(Exception):
+    """Raised when object pooling mechanism is depleted."""
+    def __init__(self, resource_type):
+        self.message = f"No available instances for {resource_type} in pool"
+        super().__init__(self.message)
 
-def handle_engine_fault(err):
-    """Functional wrapper for critical recovery procedures."""
-    import sys
-    registry = {
-        PerformanceThresholdError: lambda e: print(f'Dropping frames: {e}'),
-        ResourceLeakError: lambda e: print('Forcing garbage collection cycle')
-    }
-    handler = registry.get(type(err), lambda e: sys.exit('Fatal engine state'))
-    return handler(err)
+class CacheInvalidationFault(Exception):
+    """Raised when cache state becomes inconsistent during hot-path."""
+    def __init__(self, key):
+        self.message = f"Atomic write failure for cache key: {key}"
+        super().__init__(self.message)
 
-class FaultContext:
-    """Context manager for suppressing benign GPU glitched states."""
-    def __enter__(self):
-        return self
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if exc_type in (PerformanceThresholdError, ResourceLeakError):
-            handle_engine_fault(exc_val)
-            return True
-        return False
+class OptimizationFault(Exception):
+    """Base exception for high-performance sub-system failures."""
+    def __init__(self, code, context):
+        self.code = code
+        self.context = context
+        super().__init__(f"Optimization fault [{code}]: {context}")
+
+def raise_if_lagging(current_time, threshold):
+    if current_time > threshold:
+        raise PerformanceThresholdError(current_time, threshold)
+
+def validate_resource_availability(count, limit, name):
+    if count >= limit:
+        raise ResourcePoolExhaustion(name)
