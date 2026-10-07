@@ -1,34 +1,31 @@
 import logging
-import os
 from logging.handlers import RotatingFileHandler
+import sys
 
-def setup_logger(name: str, log_file: str = 'game_perf.log'):
+def get_performance_logger(name: str = 'game-perf-logger'):
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
     
     formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        '%(asctime)s | %(levelname)-8s | %(process)d | %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
     )
 
-    # Rotation logic: 5MB per file, keep 3 backups
-    handler = RotatingFileHandler(
-        log_file, 
-        maxBytes=5 * 1024 * 1024, 
+    # Console output for real-time debugging
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+
+    # Rotation logic for disk preservation (5MB per file, 3 backups)
+    file_handler = RotatingFileHandler(
+        'perf_metrics.log', 
+        maxBytes=5*1024*1024, 
         backupCount=3
     )
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-    
-    # Console output for dev visibility
-    console = logging.StreamHandler()
-    console.setFormatter(formatter)
-    logger.addHandler(console)
-    
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+
     return logger
 
-# Singleton-ish approach for game performance metrics
-performance_logger = setup_logger('perf_tracker')
-
-def log_frame_time(delta: float):
-    if delta > 0.016:
-        performance_logger.warning(f'Frame spike detected: {delta:.4f}s')
+# Quick access factory instance
+perf_logger = get_performance_logger()
