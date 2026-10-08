@@ -1,40 +1,35 @@
-import math
-from typing import Final, Dict, Tuple
+import os
+import logging
 
-# Precomputed lookup tables for expensive runtime math
-# Memory trade-off for CPU cycles in frame-critical updates
+# configuration for performance profiling
+PERFORMANCE_THRESHOLD = float(os.getenv('PERF_LIMIT', 0.016))
+MAX_RETRIES = 3
 
-TABLE_SIZE: Final[int] = 1024
+class PerformanceError(Exception):
+    """Base exception for engine lag events."""
+    pass
 
-SIN_LOOKUP: Final[Tuple[float, ...]] = tuple(
-    math.sin(2 * math.pi * i / TABLE_SIZE) for i in range(TABLE_SIZE)
-)
+def validate_fps_limit(val: float) -> float:
+    """coercion of frame timing values with recovery"""
+    try:
+        parsed = float(val)
+        if parsed <= 0:
+            raise ValueError("timing must be positive")
+        return parsed
+    except (ValueError, TypeError):
+        logging.warning("invalid timing input, falling back to 60fps")
+        return 0.016
 
-COS_LOOKUP: Final[Tuple[float, ...]] = tuple(
-    math.cos(2 * math.pi * i / TABLE_SIZE) for i in range(TABLE_SIZE)
-)
-
-def fast_sin(theta: float) -> float:
-    """Index-based trigonometric approximation for game loops."""
-    idx = int((theta / (2 * math.pi)) * TABLE_SIZE) % TABLE_SIZE
-    return SIN_LOOKUP[idx]
-
-def fast_cos(theta: float) -> float:
-    """Index-based trigonometric approximation for game loops."""
-    idx = int((theta / (2 * math.pi)) * TABLE_SIZE) % TABLE_SIZE
-    return COS_LOOKUP[idx]
-
-# Cache-friendly spatial constants
-GRID_SIZE: Final[int] = 64
-TILE_DIM: Final[int] = 32
-
-ENTITY_POOL_LIMIT: Final[int] = 512
-
-PHYSICS_TICK_RATE: Final[float] = 1.0 / 60.0
-
-LOG_LEVEL_MAP: Final[Dict[str, int]] = {
-    "DEBUG": 10,
-    "INFO": 20,
-    "WARN": 30,
-    "ERROR": 40
+# performance profile modes
+PROFILES = {
+    'ultra': {'draw_calls': 1000, 'shader_complexity': 5},
+    'potato': {'draw_calls': 100, 'shader_complexity': 1}
 }
+
+def get_profile(mode: str):
+    """retrieval of settings with graceful degradation"""
+    return PROFILES.get(mode, PROFILES['potato'])
+
+# magic constants for interpolation
+LERP_EPSILON = 1e-6
+DEFAULT_LATENCY_BUFFER = 0.05
