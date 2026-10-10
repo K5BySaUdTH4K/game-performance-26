@@ -1,31 +1,29 @@
 import logging
 from logging.handlers import RotatingFileHandler
-import sys
+import os
 
-def get_performance_logger(name: str = 'game-perf-logger'):
+def get_game_logger(name='game_performance_26', log_file='game.log'):
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
-    
-    formatter = logging.Formatter(
-        '%(asctime)s | %(levelname)-8s | %(process)d | %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
-    )
 
-    # Console output for real-time debugging
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
+    if not logger.handlers:
+        formatter = logging.Formatter(
+            '%(asctime)s | %(levelname)-8s | %(name)s | %(message)s',
+            datefmt='%H:%M:%S'
+        )
 
-    # Rotation logic for disk preservation (5MB per file, 3 backups)
-    file_handler = RotatingFileHandler(
-        'perf_metrics.log', 
-        maxBytes=5*1024*1024, 
-        backupCount=3
-    )
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
+        file_handler = RotatingFileHandler(
+            log_file,
+            maxBytes=1024 * 1024 * 5,
+            backupCount=3
+        )
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+
+        console = logging.StreamHandler()
+        console.setFormatter(formatter)
+        logger.addHandler(console)
 
     return logger
 
-# Quick access factory instance
-perf_logger = get_performance_logger()
+log = get_game_logger()
