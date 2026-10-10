@@ -1,46 +1,55 @@
 # game-performance-26
 
-`game-performance-26` is a lightweight Python toolkit designed to monitor and optimize system resources during gaming sessions. It helps users track frame time consistency, CPU/GPU utilization, and background process interference in real-time.
+`game-performance-26` is a lightweight Python toolkit designed to monitor and optimize frame rates for Python-based game engines. It provides real-time telemetry and automated resource throttling to ensure consistent performance during resource-intensive gameplay.
 
-### Key Features
+## Features
 
-*   **Real-time Telemetry:** Stream frame rate and hardware thermals directly to the console or an external dashboard.
-*   **Process Governor:** Automatically detects intensive background tasks and lowers their CPU priority while games are active.
-*   **Thermal Throttling Alerts:** Configurable logging for temperature spikes that trigger performance drops.
-*   **Low-Overhead Profiling:** Built using `psutil` and `cProfile` to ensure the tool consumes less than 1% of total system resources.
+*   **Frame-Time Analysis:** Tracks min/max/average frame times with sub-millisecond precision to detect stutter and micro-stutter patterns.
+*   **Dynamic Load Balancing:** Automatically adjusts garbage collection frequency based on CPU spikes to prevent frame drops.
+*   **Hardware Telemetry:** Interfaces with `psutil` to provide live reports on GPU utilization and memory pressure specifically for Python-driven processes.
+*   **Exportable Logs:** Generates CSV performance traces compatible with spreadsheet software for post-game analysis.
 
-### Installation
+## Installation
 
-Requires Python 3.8+ and administrative privileges to manage process priorities.
+Ensure you have Python 3.8+ installed. You can install the package via pip:
 
 ```bash
-# Clone the repository
+pip install game-performance-26
+```
+
+For development builds, clone the repository and install requirements:
+
+```bash
 git clone https://github.com/Developer/game-performance-26.git
 cd game-performance-26
-
-# Install dependencies
 pip install -r requirements.txt
 ```
 
-### Basic Usage
+## Usage
 
-To begin monitoring your active game process and apply optimization presets, execute the following:
+Integrate the performance monitor directly into your game loop to start tracking immediately:
 
-```bash
-# Run with default monitoring settings
-python main.py --target "Game.exe" --optimize
+```python
+from game_performance import PerformanceMonitor
+
+# Initialize monitor with a 1-second update interval
+monitor = PerformanceMonitor(update_interval=1.0)
+
+try:
+    while True:
+        monitor.start_frame()
+        # Your game logic here
+        monitor.end_frame()
+        
+        # Display performance data
+        stats = monitor.get_stats()
+        print(f"Current FPS: {stats['fps']:.2f}")
+except KeyboardInterrupt:
+    monitor.save_report("session_logs.csv")
 ```
 
-To view a detailed report of system resource usage after a session, use:
+## License
 
-```bash
-python main.py --report session_logs.json
-```
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-### Configuration
-You can adjust the polling interval and target thresholds by editing the `config.yaml` file located in the root directory. Setting the `polling_rate` too low may increase CPU overhead.
-
-### License
-![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+Distributed under the MIT License. See `LICENSE` for more information.
