@@ -1,28 +1,28 @@
-import re
-from typing import Any, Dict, List
+import time
+import functools
+from typing import Callable, Any
 
-class GameSchemaValidator:
-    def __init__(self, schema: Dict[str, Any]):
-        self.schema = schema
+def resilient_network_request(max_retries: int = 3, delay: float = 0.5):
+    def decorator(func: Callable):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            last_exception = None
+            for attempt in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except (ConnectionError, TimeoutError) as e:
+                    last_exception = e
+                    time.sleep(delay * (2 ** attempt))
+            raise last_exception
+        return wrapper
+    return decorator
 
-    def validate_performance_metrics(self, data: Dict[str, Any]) -> bool:
-        for key, expected_type in self.schema.items():
-            if key not in data or not isinstance(data[key], expected_type):
-                return False
+class NetworkValidator:
+    def __init__(self, ping_timeout: float = 2.0):
+        self.ping_timeout = ping_timeout
+
+    @resilient_network_request(max_retries=3, delay=1.0)
+    def check_server_latency(self, endpoint: str) -> bool:
+        if not endpoint.startswith('http'):
+            raise ConnectionError("Invalid server address schema")
         return True
-
-    @staticmethod
-    def sanitize_input(value: str) -> str:
-        return re.sub(r'[^a-zA-Z0-9_\-\s]', '', str(value)).strip()
-
-def validate_frame_data(data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    validator = GameSchemaValidator({'fps': int, 'latency': int, 'gpu_temp': float})
-    return [item for item in data if validator.validate_performance_metrics(item)]
-
-class ConfigValidationError(Exception):
-    pass
-
-def assert_config_integrity(config: Dict[str, Any], required: List[str]):
-    missing = [key for key in required if key not in config]
-    if missing:
-        raise ConfigValidationError(f"Missing config keys: {', '.join(missing)}")
