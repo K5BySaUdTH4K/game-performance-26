@@ -1,29 +1,33 @@
 import logging
-from logging.handlers import RotatingFileHandler
-import os
+import time
+import functools
 
-def get_game_logger(name='game_performance_26', log_file='game.log'):
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
+class PerformanceLogger:
+    def __init__(self, name="game_perf"):
+        self.logger = logging.getLogger(name)
+        self.logger.setLevel(logging.DEBUG)
+        ch = logging.StreamHandler()
+        ch.setFormatter(logging.Formatter('%(asctime)s | %(levelname)s | %(message)s'))
+        self.logger.addHandler(ch)
 
-    if not logger.handlers:
-        formatter = logging.Formatter(
-            '%(asctime)s | %(levelname)-8s | %(name)s | %(message)s',
-            datefmt='%H:%M:%S'
-        )
+    def profile_frame(self, func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            start = time.perf_counter()
+            result = func(*args, **kwargs)
+            duration = (time.perf_counter() - start) * 1000
+            if duration > 16.67:
+                self.logger.warning(f"Slow frame {func.__name__}: {duration:.2f}ms")
+            return result
+        return wrapper
 
-        file_handler = RotatingFileHandler(
-            log_file,
-            maxBytes=1024 * 1024 * 5,
-            backupCount=3
-        )
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
+    def track_asset_load(self, asset_name: str):
+        def decorator(func):
+            @functools.wraps(func)
+            def wrapper(*args, **kwargs):
+                self.logger.info(f"Loading asset: {asset_name}")
+                return func(*args, **kwargs)
+            return wrapper
+        return decorator
 
-        console = logging.StreamHandler()
-        console.setFormatter(formatter)
-        logger.addHandler(console)
-
-    return logger
-
-log = get_game_logger()
+perf_logger = PerformanceLogger()
