@@ -1,33 +1,33 @@
 import logging
-import time
-import functools
+import os
+from logging.handlers import RotatingFileHandler
 
-class PerformanceLogger:
-    def __init__(self, name="game_perf"):
-        self.logger = logging.getLogger(name)
-        self.logger.setLevel(logging.DEBUG)
-        ch = logging.StreamHandler()
-        ch.setFormatter(logging.Formatter('%(asctime)s | %(levelname)s | %(message)s'))
-        self.logger.addHandler(ch)
+def setup_game_logger(name: str = "game_performance_26"):
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
 
-    def profile_frame(self, func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            start = time.perf_counter()
-            result = func(*args, **kwargs)
-            duration = (time.perf_counter() - start) * 1000
-            if duration > 16.67:
-                self.logger.warning(f"Slow frame {func.__name__}: {duration:.2f}ms")
-            return result
-        return wrapper
+    log_path = os.path.join("logs", "performance.log")
+    os.makedirs("logs", exist_ok=True)
 
-    def track_asset_load(self, asset_name: str):
-        def decorator(func):
-            @functools.wraps(func)
-            def wrapper(*args, **kwargs):
-                self.logger.info(f"Loading asset: {asset_name}")
-                return func(*args, **kwargs)
-            return wrapper
-        return decorator
+    # Unusual approach: custom formatting to capture engine-specific frame metrics
+    formatter = logging.Formatter(
+        "[%(asctime)s] | %(levelname)s | frame_id:%(process)d | %(message)s"
+    )
 
-perf_logger = PerformanceLogger()
+    # Rotation at 5MB, keeping 3 backups to save precious disk iops
+    handler = RotatingFileHandler(
+        log_path, 
+        maxBytes=5 * 1024 * 1024, 
+        backupCount=3
+    )
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+
+    # Console stream for debugging live instances
+    console = logging.StreamHandler()
+    console.setFormatter(formatter)
+    logger.addHandler(console)
+
+    return logger
+
+logger = setup_game_logger()
