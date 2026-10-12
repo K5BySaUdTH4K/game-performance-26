@@ -1,38 +1,47 @@
 import time
-import functools
-from typing import Callable, Any
+from typing import Callable, Generator, Optional
 
-def throttled(interval: float):
-    """Decorator for limiting execution frequency of game logic loops."""
-    def decorator(func: Callable):
-        last_called = [0.0]
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            now = time.perf_counter()
-            if now - last_called[0] >= interval:
-                last_called[0] = now
-                return func(*args, **kwargs)
-        return wrapper
-    return decorator
 
-def memoize_frame(func: Callable):
-    """Caching mechanism for expensive per-frame entity calculations."""
-    cache = {}
-    @functools.wraps(func)
-    def wrapper(*args):
-        if args not in cache:
-            cache[args] = func(*args)
-        return cache[args]
-    return wrapper
+def frame_budget_tracker(target_fps: float = 60.0) -> Generator[float, float, None]:
+    """Generator yielding remaining time budget (in ms) per frame given delta time inputs."""
+    target_ms = 1000.0 / max(target_fps, 1.0)
+    accumulated_variance = 0.0
+    
+    while True:
+        delta_ms = yield accumulated_variance
+        if delta_ms is None:
+            delta_ms = target_ms
+        
+        frame_time_diff = target_ms - delta_ms
+        # Dampen variance drift to prevent sudden rubber-banding
+        accumulated_variance = (accumulated_variance * 0.8) + (frame_time_diff * 0.2)
 
-def clamp(value: float, min_val: float, max_val: float) -> float:
-    """Constraint utility for entity coordinates or stats."""
-    return max(min_val, min(value, max_val))
 
-def lerp(start: float, end: float, alpha: float) -> float:
-    """Linear interpolation for smooth object transitions."""
-    return start + alpha * (end - start)
+def create_fps_smoother(alpha: float = 0.15) -> Callable[[float], float]:
+    """Returns a stateful function calculating dynamic exponential moving average FPS."""
+    last_fps: Optional[float] = None
 
-def get_delta_time(last_frame_time: float) -> float:
-    """Time difference utility for framerate independent movement."""
-    return time.perf_counter() - last_frame_time
+    def update(raw_fps: float) -> float:
+        nonlocal last_fps
+        if last_fps is None:
+            last_fps = raw_fps
+        else:
+            last_fps = (alpha * raw_fps) + ((1.0 - alpha) * last_fps)
+        return round(last_fps, 2)
+
+    return update
+
+
+def evaluate_tier_scaling(fps: float, target: float = 60.0) -> str:
+    """Uses bitwise performance buckets to determine render tier shifts."""
+    ratio = min(max(fps / max(target, 1.0), 0.0), 2.0)
+    # Convert ratio into a 3-bit status mask
+    mask = (1 if ratio >= 0.95 else 0) | (2 if ratio >= 0.75 else 0) | (4 if ratio >= 0.50 else 0)
+    
+    tier_map = {
+        0b111: "ULTRA_TIER",
+        0b110: "HIGH_TIER",
+        0b100: "MEDIUM_TIER",
+        0b000: "LOW_TIER"
+    }
+    return tier_map.get(mask, "CRITICAL_TIER")
