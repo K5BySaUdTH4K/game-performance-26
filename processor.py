@@ -1,59 +1,54 @@
-import random
-import time
-from typing import Callable, Any, Tuple, Type
+import struct
+from collections import deque
+from typing import Generator, Dict, Any
 
-class NetworkException(Exception):
-    """Base exception for game telemetry transmission failures."""
-    pass
+class FrameTelemetryProcessor:
+    """Processes packed binary frame telemetry streams to detect micro-stutters and calculate frame metrics."""
+    
+    def __init__(self, frame_budget_ms: float = 16.67, window_size: int = 100):
+        self.target_frame_time = frame_budget_ms
+        self.window_size = window_size
+        self._fmt = "<I f H B"  # frame_id (uint32), frame_time (float), draw_calls (uint16), flags (uint8)
+        self._struct_size = struct.calcsize(self._fmt)
 
-class ServerUnreachableError(NetworkException):
-    """Raised when all retry attempts to reach the game server fail."""
-    pass
+    def unpack_stream(self, raw_bytes: bytes) -> Generator[Dict[str, Any], None, None]:
+        """Decodes raw byte streams using zero-copy memoryviews."""
+        view = memoryview(raw_bytes)
+        for offset in range(0, len(view) - self._struct_size + 1, self._struct_size):
+            frame_id, ft, draw_calls, flags = struct.unpack_from(self._fmt, view, offset)
+            yield {
+                "frame_id": frame_id,
+                "frame_time_ms": round(ft, 3),
+                "draw_calls": draw_calls,
+                "gpu_bound": bool(flags & 0x01),
+                "cpu_bound": bool(flags & 0x02),
+            }
 
-def dynamic_telemetry_retry(
-    max_attempts: int = 5,
-    base_delay: float = 0.05,
-    max_delay: float = 1.5,
-    backoff_factor: float = 1.618,
-    exceptions: Tuple[Type[Exception], ...] = (NetworkException, ConnectionError)
-) -> Callable:
-    """Golden-ratio backoff retry decorator with frame-aligned jitter."""
-    def decorator(func: Callable) -> Callable:
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            attempt = 0
-            delay = base_delay
-            while attempt < max_attempts:
-                try:
-                    return func(*args, **kwargs)
-                except exceptions as err:
-                    attempt += 1
-                    if attempt >= max_attempts:
-                        raise ServerUnreachableError(
-                            f"Telemetry sync lost after {max_attempts} attempts: {err}"
-                        ) from err
-                    
-                    # Golden ratio multiplier combined with tick-interval jitter simulation
-                    jitter = random.uniform(0.85, 1.15)
-                    sleep_time = min(max_delay, delay * jitter)
-                    time.sleep(sleep_time)
-                    delay *= backoff_factor
-        return wrapper
-    return decorator
-
-class GamePacketProcessor:
-    """Handles sending real-time frame telemetry to remote endpoints."""
-    def __init__(self, endpoint: str):
-        self.endpoint = endpoint
-        self.total_dropped_packets = 0
-
-    @dynamic_telemetry_retry(max_attempts=4, base_delay=0.02, max_delay=0.4)
-    def send_frame_telemetry(self, frame_id: int, metrics: dict) -> dict:
-        if random.random() < 0.4:
-            self.total_dropped_packets += 1
-            raise NetworkException(f"Packet dropped on tick for frame {frame_id}")
+    def compute_performance_metrics(self, raw_bytes: bytes) -> Dict[str, Any]:
+        """Calculates 1% lows, average FPS, and micro-stutter frequency from packed telemetry."""
+        history: deque = deque(maxlen=self.window_size)
+        stutter_count = 0
+        total_frames = 0
+        
+        for frame in self.unpack_stream(raw_bytes):
+            ft = frame["frame_time_ms"]
+            history.append(ft)
+            total_frames += 1
+            if ft > self.target_frame_time * 1.5:
+                stutter_count += 1
+                
+        if not history:
+            return {"avg_fps": 0.0, "p99_low_fps": 0.0, "stutter_rate": 0.0, "total_frames": 0}
+            
+        sorted_history = sorted(history)
+        p99_idx = max(0, int(len(sorted_history) * 0.01))
+        p99_frame_time = sorted_history[-1 - p99_idx] if p99_idx < len(sorted_history) else sorted_history[0]
+        avg_ft = sum(history) / len(history)
+        
         return {
-            "status": "ACK",
-            "frame_id": frame_id,
-            "endpoint": self.endpoint,
-            "latency_ms": random.randint(12, 48)
+            "avg_fps": round(1000.0 / avg_ft, 1) if avg_ft > 0 else 0.0,
+            "p99_low_fps": round(1000.0 / p99_frame_time, 1) if p99_frame_time > 0 else 0.0,
+            "stutter_rate": round(stutter_count / total_frames, 4) if total_frames else 0.0,
+            "total_frames": total_frames,
+            "max_frame_time_ms": max(sorted_history),
         }
