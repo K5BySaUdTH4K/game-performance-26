@@ -1,36 +1,36 @@
-import asyncio
-import random
+import functools
 import time
-from typing import Callable, Any, TypeVar, cast
+import collections
 
-T = TypeVar("T", bound=Callable[..., Any])
+def frame_rate_throttle(limit_hz=60):
+    interval = 1.0 / limit_hz
+    state = {'last_exec': 0.0}
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            now = time.perf_counter()
+            elapsed = now - state['last_exec']
+            if elapsed < interval:
+                time.sleep(interval - elapsed)
+            state['last_exec'] = time.perf_counter()
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
 
-class NetworkDegradationError(Exception):
-    """Raised when game server network health is critically degraded."""
-    pass
+class DataPool:
+    def __init__(self, capacity=1024):
+        self._pool = collections.deque(maxlen=capacity)
+    def recycle(self, obj):
+        self._pool.append(obj)
+    def request(self, cls, *args, **kwargs):
+        return self._pool.pop() if self._pool else cls(*args, **kwargs)
 
-class AdaptiveRetry:
-    """
-    Game-loop-friendly adaptive retry mechanism.
-    Adapts delay dynamically using simulated network metrics and golden ratio backoff.
-    """
-    def __init__(self, max_attempts: int = 4, base_ping_ms: float = 50.0):
-        self.max_attempts = max_attempts
-        self.base_ping = base_ping_ms / 1000.0  # Convert to seconds
+memoized_calculations = {}
 
-    def __call__(self, func: T) -> T:
-        async def wrapper(*args: Any, **kwargs: Any) -> Any:
-            last_error = None
-            for attempt in range(1, self.max_attempts + 1):
-                start_time = time.perf_counter()
-                try:
-                    return await func(*args, **kwargs)
-                except Exception as exc:
-                    last_error = exc
-                    elapsed = time.perf_counter() - start_time
-                    
-                    # Chaotic backoff: base ping * golden ratio^attempt * structural jitter
-                    golden_ratio = 1.618
-                    chaos_factor = random.uniform(0.8, 1.2)
-                    
-                    # Add penalty based on actual latency of the
+def fast_lookup(func):
+    @functools.wraps(func)
+    def wrapper(*args):
+        if args not in memoized_calculations:
+            memoized_calculations[args] = func(*args)
+        return memoized_calculations[args]
+    return wrapper
