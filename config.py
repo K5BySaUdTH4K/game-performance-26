@@ -1,40 +1,40 @@
 import json
-import os
+from pathlib import Path
 from typing import Any, Dict
 
 class GameConfig:
-    """dynamic configuration loader with fallback chain"""
-    DEFAULTS = {
-        "fps_cap": 144,
-        "vsync": True,
+    DEFAULT_SETTINGS = {
         "resolution": [1920, 1080],
-        "graphics_preset": "ultra"
+        "vsync": True,
+        "target_fps": 144,
+        "anisotropic_filtering": 16
     }
 
     def __init__(self, config_path: str = "settings.json"):
-        self.path = config_path
-        self.settings = self.DEFAULTS.copy()
+        self.path = Path(config_path)
+        self._data = self.DEFAULT_SETTINGS.copy()
         self._load()
 
     def _load(self) -> None:
-        if os.path.exists(self.path):
+        if self.path.exists():
             try:
                 with open(self.path, "r") as f:
                     loaded = json.load(f)
-                    self.settings.update({k: v for k, v in loaded.items() if k in self.DEFAULTS})
-            except (json.JSONDecodeError, IOError):
+                    self._data.update({k: v for k, v in loaded.items() if k in self.DEFAULT_SETTINGS})
+            except (json.JSONDecodeError, OSError):
                 pass
 
+    def get(self, key: str) -> Any:
+        return self._data.get(key, self.DEFAULT_SETTINGS.get(key))
+
     def __getitem__(self, key: str) -> Any:
-        return self.settings.get(key)
+        return self._data[key]
 
     def save(self) -> None:
         with open(self.path, "w") as f:
-            json.dump(self.settings, f, indent=4)
+            json.dump(self._data, f, indent=4)
 
-    @property
-    def raw(self) -> Dict[str, Any]:
-        return self.settings
-
-    def __repr__(self) -> str:
-        return f"<GameConfig settings={self.settings}>"
+def get_config() -> GameConfig:
+    if not hasattr(get_config, "_instance"):
+        get_config._instance = GameConfig()
+    return get_config._instance
