@@ -1,32 +1,32 @@
-class PerformanceThresholdError(Exception):
-    """Raised when game frame budget is exceeded."""
-    def __init__(self, frame_time, threshold):
-        self.message = f"Frame time {frame_time:.4f}ms exceeds {threshold}ms limit"
-        super().__init__(self.message)
+class PerformanceError(Exception):
+    """Base exception for all game-performance-26 engine errors."""
 
-class ResourcePoolExhaustion(Exception):
-    """Raised when object pooling mechanism is depleted."""
-    def __init__(self, resource_type):
-        self.message = f"No available instances for {resource_type} in pool"
-        super().__init__(self.message)
+class FrameDropWarning(PerformanceError):
+    """Raised when frame latency exceeds acceptable thresholds."""
 
-class CacheInvalidationFault(Exception):
-    """Raised when cache state becomes inconsistent during hot-path."""
-    def __init__(self, key):
-        self.message = f"Atomic write failure for cache key: {key}"
-        super().__init__(self.message)
+class ResourceOverloadError(PerformanceError):
+    """Raised when memory or GPU utilization hits critical peaks."""
 
-class OptimizationFault(Exception):
-    """Base exception for high-performance sub-system failures."""
-    def __init__(self, code, context):
-        self.code = code
-        self.context = context
-        super().__init__(f"Optimization fault [{code}]: {context}")
+class HardwareAbstractionError(PerformanceError):
+    """Raised when low-level hardware communication fails."""
 
-def raise_if_lagging(current_time, threshold):
-    if current_time > threshold:
-        raise PerformanceThresholdError(current_time, threshold)
+def monitor_performance(func):
+    """Decorator for tracking execution drift in game loops."""
+    import time
+    import functools
 
-def validate_resource_availability(count, limit, name):
-    if count >= limit:
-        raise ResourcePoolExhaustion(name)
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        start = time.perf_counter()
+        result = func(*args, **kwargs)
+        elapsed = time.perf_counter() - start
+        if elapsed > 0.016:  # 60 FPS threshold
+            raise FrameDropWarning(f"Latency spike detected: {elapsed:.4f}s")
+        return result
+    return wrapper
+
+def graceful_panic(reason: str):
+    """Custom exit sequence for irrecoverable engine state."""
+    import sys
+    print(f"CRITICAL ENGINE FAILURE: {reason}")
+    sys.exit(1)
