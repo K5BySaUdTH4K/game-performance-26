@@ -1,31 +1,30 @@
-import logging
-import sys
-from typing import Any, Optional
+import time
+import functools
+from typing import Callable, Any
 
 class PerformanceLogger:
-    """Custom logger for game-performance-26 profiling operations."""
+    def __init__(self, threshold_ms: float = 16.67):
+        self.threshold = threshold_ms
 
-    def __init__(self, name: str = "game_perf") -> None:
-        self.logger: logging.Logger = logging.getLogger(name)
-        self.logger.setLevel(logging.DEBUG)
-        handler: logging.StreamHandler = logging.StreamHandler(sys.stdout)
-        formatter: logging.Formatter = logging.Formatter(
-            "[%(asctime)s][%(levelname)s] %(message)s", datefmt="%H:%M:%S"
-        )
-        handler.setFormatter(formatter)
-        self.logger.addHandler(handler)
+    def __call__(self, func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            start = time.perf_counter()
+            result = func(*args, **kwargs)
+            elapsed = (time.perf_counter() - start) * 1000
+            if elapsed > self.threshold:
+                print(f'[FRAME_SPIKE] {func.__name__} took {elapsed:.2f}ms')
+            return result
+        return wrapper
 
-    def log_metric(self, tag: str, value: Any, context: Optional[str] = None) -> None:
-        """Formats and emits a performance metric to standard output."""
-        msg: str = f"METRIC_SIG | {tag.upper()} | {value}"
-        if context:
-            msg += f" | Context: {context}"
-        self.logger.info(msg)
+    @staticmethod
+    def log_state(state_name: str, data: dict):
+        """Snapshot telemetry for game state debugging."""
+        ts = time.time()
+        payload = {'ts': ts, 'state': state_name, **data}
+        with open('performance.log', 'a') as f:
+            f.write(str(payload) + '\n')
 
-    def alert_bottleneck(self, subsystem: str, threshold: float) -> None:
-        """Signals a frame-time or memory threshold breach."""
-        self.logger.warning(f"BOTTLENECK DETECTED: {subsystem} > {threshold}ms")
-
-def get_logger(name: str = "game_perf") -> PerformanceLogger:
-    """Factory function for creating persistent performance loggers."""
-    return PerformanceLogger(name)
+def track_perf(func: Callable) -> Callable:
+    decorator = PerformanceLogger()
+    return decorator(func)
