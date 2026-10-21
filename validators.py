@@ -1,28 +1,32 @@
-import time
-import functools
-from typing import Callable, Any
+import re
+from typing import Any, Dict, Optional
 
-def resilient_network_request(max_retries: int = 3, delay: float = 0.5):
-    def decorator(func: Callable):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
-            last_exception = None
-            for attempt in range(max_retries):
-                try:
-                    return func(*args, **kwargs)
-                except (ConnectionError, TimeoutError) as e:
-                    last_exception = e
-                    time.sleep(delay * (2 ** attempt))
-            raise last_exception
-        return wrapper
-    return decorator
+class LatencySanitizer:
+    """Anomaly detection for game frame-time metrics."""
+    def __init__(self, threshold_ms: float = 33.3):
+        self.threshold = threshold_ms
 
-class NetworkValidator:
-    def __init__(self, ping_timeout: float = 2.0):
-        self.ping_timeout = ping_timeout
+    def validate_telemetry(self, data: Dict[str, Any]) -> bool:
+        """Checks if frame times deviate from target performance."""
+        frame_time = data.get("frame_time", 0)
+        return 0 < frame_time <= self.threshold
 
-    @resilient_network_request(max_retries=3, delay=1.0)
-    def check_server_latency(self, endpoint: str) -> bool:
-        if not endpoint.startswith('http'):
-            raise ConnectionError("Invalid server address schema")
-        return True
+def sanitize_player_id(raw_id: str) -> str:
+    """Cleans username strings using regex matching."""
+    return re.sub(r'[^a-zA-Z0-9_]', '', raw_id)[:16]
+
+def validate_game_state(payload: Dict[str, Any]) -> bool:
+    """Structural validation for incoming network packets."""
+    required_keys = {"session_id", "timestamp", "payload_type"}
+    if not all(k in payload for k in required_keys):
+        return False
+    
+    if not isinstance(payload.get("session_id"), int):
+        return False
+
+    return True
+
+class DataValidator:
+    """Stateful validator for batch processing gaming data."""
+    def __call__(self, batch: list) -> list:
+        return [item for item in batch if validate_game_state(item)]
