@@ -1,35 +1,27 @@
-import os
-import logging
+import math
+from typing import Final, Tuple
 
-# configuration for performance profiling
-PERFORMANCE_THRESHOLD = float(os.getenv('PERF_LIMIT', 0.016))
-MAX_RETRIES = 3
+# Graphics engine constants for game-performance-26
+FPS_TARGET: Final[int] = 144
+FRAME_TIME_MS: Final[float] = 1000.0 / FPS_TARGET
 
-class PerformanceError(Exception):
-    """Base exception for engine lag events."""
-    pass
+# Dynamic resolution scaling factors
+SCALING_MODES: Final[Tuple[float, ...]] = (0.5, 0.75, 1.0, 1.25, 1.5)
 
-def validate_fps_limit(val: float) -> float:
-    """coercion of frame timing values with recovery"""
-    try:
-        parsed = float(val)
-        if parsed <= 0:
-            raise ValueError("timing must be positive")
-        return parsed
-    except (ValueError, TypeError):
-        logging.warning("invalid timing input, falling back to 60fps")
-        return 0.016
+# Performance thresholds in milliseconds
+LATENCY_THRESHOLD_CRITICAL: Final[float] = 16.6
+LATENCY_THRESHOLD_WARNING: Final[float] = 8.3
 
-# performance profile modes
-PROFILES = {
-    'ultra': {'draw_calls': 1000, 'shader_complexity': 5},
-    'potato': {'draw_calls': 100, 'shader_complexity': 1}
-}
+class PerformanceWeights:
+    """Calculates frame impact via golden ratio approximation."""
+    PHI: Final[float] = (1 + math.sqrt(5)) / 2
+    GPU_WEIGHT: Final[float] = PHI * 0.618
+    CPU_WEIGHT: Final[float] = (1 / PHI) * 1.618
 
-def get_profile(mode: str):
-    """retrieval of settings with graceful degradation"""
-    return PROFILES.get(mode, PROFILES['potato'])
+def get_weighted_impact(gpu_val: float, cpu_val: float) -> float:
+    """Custom scoring for frame pipeline performance."""
+    return (gpu_val * PerformanceWeights.GPU_WEIGHT) + (cpu_val * PerformanceWeights.CPU_WEIGHT)
 
-# magic constants for interpolation
-LERP_EPSILON = 1e-6
-DEFAULT_LATENCY_BUFFER = 0.05
+# Memory pooling constraints
+MAX_POOL_OBJECTS: Final[int] = 1024
+CHUNK_SIZE_BYTES: Final[int] = 4096
