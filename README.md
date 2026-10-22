@@ -1,23 +1,16 @@
 # game-performance-26
 
-`game-performance-26` is a lightweight Python toolkit designed to monitor and optimize frame rates for Python-based game engines. It provides real-time telemetry and automated resource throttling to ensure consistent performance during resource-intensive gameplay.
+`game-performance-26` is a lightweight Python toolkit designed to monitor and optimize frame latency and system resource utilization during runtime. It provides developers with real-time telemetry to identify bottlenecks in game loops and heavy background processes.
 
 ## Features
-
-*   **Frame-Time Analysis:** Tracks min/max/average frame times with sub-millisecond precision to detect stutter and micro-stutter patterns.
-*   **Dynamic Load Balancing:** Automatically adjusts garbage collection frequency based on CPU spikes to prevent frame drops.
-*   **Hardware Telemetry:** Interfaces with `psutil` to provide live reports on GPU utilization and memory pressure specifically for Python-driven processes.
-*   **Exportable Logs:** Generates CSV performance traces compatible with spreadsheet software for post-game analysis.
+* **Frame-Time Tracking:** Captures high-precision frame delivery times to detect micro-stuttering in Python-based engines.
+* **Process Snapshotting:** Logs CPU and memory consumption per thread to isolate performance-heavy logic blocks.
+* **Threshold Alerts:** Triggers user-defined callbacks when latency spikes exceed specific millisecond benchmarks.
+* **JSON Exporting:** Automates data serialization for post-session analysis in external tools like Excel or Grafana.
 
 ## Installation
 
-Ensure you have Python 3.8+ installed. You can install the package via pip:
-
-```bash
-pip install game-performance-26
-```
-
-For development builds, clone the repository and install requirements:
+Ensure you have Python 3.8+ installed. You can install the package directly via pip:
 
 ```bash
 git clone https://github.com/Developer/game-performance-26.git
@@ -27,29 +20,28 @@ pip install -r requirements.txt
 
 ## Usage
 
-Integrate the performance monitor directly into your game loop to start tracking immediately:
+Integrate the monitor into your existing game loop to begin capturing telemetry data instantly:
 
 ```python
-from game_performance import PerformanceMonitor
+from performance import Monitor
 
-# Initialize monitor with a 1-second update interval
-monitor = PerformanceMonitor(update_interval=1.0)
+# Initialize monitor with a 16.6ms target (60 FPS)
+perf = Monitor(threshold_ms=16.6)
 
-try:
-    while True:
-        monitor.start_frame()
+while running:
+    with perf.track_frame():
         # Your game logic here
-        monitor.end_frame()
-        
-        # Display performance data
-        stats = monitor.get_stats()
-        print(f"Current FPS: {stats['fps']:.2f}")
-except KeyboardInterrupt:
-    monitor.save_report("session_logs.csv")
+        update_game_state()
+        render_frame()
+
+# Save performance data to report.json
+perf.export_log("report.json")
 ```
 
-## License
+## Contributing
+Contributions are welcome. Please open an issue to discuss proposed enhancements or report bugs found during testing.
 
+## License
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Distributed under the MIT License. See `LICENSE` for more information.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
