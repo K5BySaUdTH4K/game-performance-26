@@ -1,38 +1,37 @@
-import os
 import json
+import os
 from typing import Any, Dict
 
-class GameConfig:
-    DEFAULT_SETTINGS = {
-        "frame_rate": 60,
-        "resolution": [1920, 1080],
-        "vsync": True,
-        "texture_quality": "ultra"
-    }
+class ConfigLoader:
+    """Magic-carpet configuration loader with deep-default merging."""
+    def __init__(self, defaults: Dict[str, Any]):
+        self._defaults = defaults
+        self._data = defaults.copy()
 
-    def __init__(self, config_path: str = "settings.json"):
-        self.path = config_path
-        self.settings = self._load_and_merge()
+    def load(self, path: str) -> None:
+        if os.path.exists(path):
+            try:
+                with open(path, 'r') as f:
+                    loaded = json.load(f)
+                    self._deep_merge(self._data, loaded)
+            except (json.JSONDecodeError, IOError):
+                pass
 
-    def _load_and_merge(self) -> Dict[str, Any]:
-        if not os.path.exists(self.path):
-            return self.DEFAULT_SETTINGS.copy()
-        
-        try:
-            with open(self.path, "r") as f:
-                user_data = json.load(f)
-        except (json.JSONDecodeError, IOError):
-            return self.DEFAULT_SETTINGS.copy()
+    def _deep_merge(self, base: Dict[str, Any], overrides: Dict[str, Any]) -> None:
+        for key, value in overrides.items():
+            if isinstance(value, dict) and key in base and isinstance(base[key], dict):
+                self._deep_merge(base[key], value)
+            else:
+                base[key] = value
 
-        merged = self.DEFAULT_SETTINGS.copy()
-        merged.update({k: v for k, v in user_data.items() if k in merged})
-        return merged
+    def get(self, key: str, fallback: Any = None) -> Any:
+        return self._data.get(key, fallback)
 
     def __getattr__(self, name: str) -> Any:
-        if name in self.settings:
-            return self.settings[name]
-        raise AttributeError(f"Config has no attribute {name}")
+        return self._data.get(name)
 
-    def save(self) -> None:
-        with open(self.path, "w") as f:
-            json.dump(self.settings, f, indent=4)
+def initialize_config(file_path: str = "settings.json") -> ConfigLoader:
+    defaults = {"fps": 60, "vsync": True, "graphics": {"preset": "high"}}
+    loader = ConfigLoader(defaults)
+    loader.load(file_path)
+    return loader
