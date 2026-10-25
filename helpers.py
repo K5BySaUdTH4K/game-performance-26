@@ -2,34 +2,36 @@ import time
 import functools
 from typing import Callable, Any, Dict
 
-def throttle_state_updates(interval: float):
-    """Throttles state updates to maintain performance in game loops."""
+def frame_throttle(ms: int = 16):
+    """Decorator to enforce frame budget constraints on functions."""
     def decorator(func: Callable):
-        last_called = 0.0
+        last_call = [0.0]
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            nonlocal last_called
-            now = time.perf_counter()
-            if now - last_called >= interval:
-                last_called = now
-                return func(*args, **kwargs)
+            elapsed = (time.perf_counter() - last_call[0]) * 1000
+            if elapsed < ms:
+                time.sleep((ms - elapsed) / 1000)
+            result = func(*args, **kwargs)
+            last_call[0] = time.perf_counter()
+            return result
         return wrapper
     return decorator
 
-class DataCompactor:
-    """Compresses sparse player telemetry data for bandwidth efficiency."""
-    @staticmethod
-    def pack(data: Dict[str, Any]) -> Dict[str, Any]:
-        return {k: v for k, v in data.items() if v is not None}
+class TelemetryBuffer:
+    """Circular buffer for game telemetry events."""
+    def __init__(self, size: int = 100):
+        self.size = size
+        self.buffer = []
 
-def calculate_delta_time(frame_times: list) -> float:
-    """Moving average calculation for frame time smoothing."""
-    if not frame_times:
-        return 0.016
-    return sum(frame_times) / len(frame_times)
+    def push(self, event: Dict[str, Any]) -> None:
+        if len(self.buffer) >= self.size:
+            self.buffer.pop(0)
+        event.update({'timestamp': time.time()})
+        self.buffer.append(event)
 
-def sanitize_input(val: Any) -> Any:
-    """Input normalization for game command interfaces."""
-    if isinstance(val, float):
-        return round(val, 4)
-    return str(val).strip().lower()
+    def export_batch(self) -> list:
+        return self.buffer.copy()
+
+def normalize_latency(value: float, min_val: float = 0.0, max_val: float = 200.0) -> float:
+    """Linear normalization for network jitter analysis."""
+    return max(0.0, min(1.0, (value - min_val) / (max_val - min_val)))
