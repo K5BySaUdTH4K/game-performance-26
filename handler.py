@@ -1,35 +1,33 @@
-from typing import Dict, List, Optional, Union
 import time
+import functools
+import random
+import logging
 
-class FrameLatencyHandler:
-    def __init__(self, threshold_ms: float = 16.67) -> None:
-        self.threshold: float = threshold_ms
-        self.history: List[float] = []
+logger = logging.getLogger('game-performance-26')
 
-    def process_frame(self, frame_time: float) -> Dict[str, Union[bool, float]]:
-        """
-        Analyzes frame timing and detects potential performance stutters.
-        Returns a dict containing flag status and current delta.
-        """
-        is_stutter: bool = frame_time > self.threshold
-        self.history.append(frame_time)
-        
-        return {
-            "is_stutter": is_stutter,
-            "delta": frame_time - self.threshold,
-            "avg": sum(self.history) / len(self.history)
-        }
+def backoff_retry(retries=3, base_delay=0.5, max_delay=5):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            attempt = 0
+            while attempt < retries:
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    attempt += 1
+                    if attempt == retries:
+                        logger.error(f'Critical network failure after {retries} attempts: {e}')
+                        raise
+                    
+                    sleep_time = min(max_delay, base_delay * (2 ** (attempt - 1))) + (random.uniform(0, 0.1))
+                    logger.warning(f'Retrying {func.__name__} in {sleep_time:.2f}s... (attempt {attempt})')
+                    time.sleep(sleep_time)
+        return wrapper
+    return decorator
 
-    def clear_metrics(self) -> None:
-        """
-        Resets the latency history cache to free memory.
-        """
-        self.history.clear()
-
-def get_performance_snapshot(data: Optional[Dict[str, float]]) -> str:
-    """
-    Generates a human-readable performance string from raw frame data.
-    """
-    if not data:
-        return "idle"
-    return f"active: {data.get('fps', 0)} fps"
+@backoff_retry(retries=5)
+def sync_game_state(payload):
+    # Simulate volatile network state in game-performance-26
+    if random.random() < 0.7:
+        raise ConnectionError('Packet drop detected')
+    return {'status': 'synced', 'timestamp': time.time()}
