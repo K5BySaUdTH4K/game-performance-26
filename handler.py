@@ -1,29 +1,35 @@
+from typing import Dict, List, Optional, Union
 import time
-import random
-from functools import wraps
 
-def resilient_network_call(max_attempts=3, backoff=0.5):
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            attempts = 0
-            while attempts < max_attempts:
-                try:
-                    return func(*args, **kwargs)
-                except (ConnectionError, TimeoutError) as e:
-                    attempts += 1
-                    if attempts >= max_attempts:
-                        raise e
-                    sleep_time = backoff * (2 ** (attempts - 1)) + (random.random() * 0.1)
-                    time.sleep(sleep_time)
-            return None
-        return wrapper
-    return decorator
+class FrameLatencyHandler:
+    def __init__(self, threshold_ms: float = 16.67) -> None:
+        self.threshold: float = threshold_ms
+        self.history: List[float] = []
 
-class NetworkHandler:
-    @resilient_network_call(max_attempts=4)
-    def sync_game_state(self, payload):
-        # Simulate unstable network in gaming environment
-        if random.random() < 0.7:
-            raise ConnectionError("Packet loss detected")
-        return {"status": "synced", "data": payload}
+    def process_frame(self, frame_time: float) -> Dict[str, Union[bool, float]]:
+        """
+        Analyzes frame timing and detects potential performance stutters.
+        Returns a dict containing flag status and current delta.
+        """
+        is_stutter: bool = frame_time > self.threshold
+        self.history.append(frame_time)
+        
+        return {
+            "is_stutter": is_stutter,
+            "delta": frame_time - self.threshold,
+            "avg": sum(self.history) / len(self.history)
+        }
+
+    def clear_metrics(self) -> None:
+        """
+        Resets the latency history cache to free memory.
+        """
+        self.history.clear()
+
+def get_performance_snapshot(data: Optional[Dict[str, float]]) -> str:
+    """
+    Generates a human-readable performance string from raw frame data.
+    """
+    if not data:
+        return "idle"
+    return f"active: {data.get('fps', 0)} fps"
