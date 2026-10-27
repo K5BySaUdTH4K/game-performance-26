@@ -1,35 +1,58 @@
-from typing import List, Dict, Optional, Union
 import time
+from collections import deque
 
-class FrameTracker:
-    """Calculates performance metrics for game frames."""
+class FramePacer:
+    """Adaptive frame time stabilizer with ring-buffered tick deltas."""
+    
+    def __init__(self, target_fps=60.0, sample_size=120):
+        self.target_frame_time = 1.0 / target_fps
+        self.samples = deque(maxlen=sample_size)
+        self.last_tick = time.perf_counter()
+        self._accumulator = 0.0
 
-    def __init__(self, buffer_size: int = 60) -> None:
-        self.buffer_size: int = buffer_size
-        self.times: List[float] = []
+    def sync(self):
+        now = time.perf_counter()
+        delta = now - self.last_tick
+        self.last_tick = now
+        self.samples.append(delta)
+        
+        avg_delta = sum(self.samples) / len(self.samples)
+        self._accumulator += delta
+        
+        ticks_due = 0
+        while self._accumulator >= self.target_frame_time:
+            ticks_due += 1
+            self._accumulator -= self.target_frame_time
+            
+        return ticks_due, avg_delta
 
-    def record_frame(self) -> None:
-        """Registers current execution timestamp to buffer."""
-        self.times.append(time.perf_counter())
-        if len(self.times) > self.buffer_size:
-            self.times.pop(0)
+class EntityBatcher:
+    """Sliced batch updater for non-blocking entity ticks."""
+    
+    def __init__(self, slice_ratio=4):
+        self.slice_ratio = slice_ratio
 
-    def get_fps(self) -> float:
-        """Calculates smoothed frames per second."""
-        if len(self.times) < 2:
-            return 0.0
-        duration: float = self.times[-1] - self.times[0]
-        return (len(self.times) - 1) / duration if duration > 0 else 0.0
+    def optimize_ticks(self, entities, delta):
+        active = [e for e in entities if getattr(e, 'is_active', True)]
+        step = max(1, len(active) // self.slice_ratio)
+        
+        for i in range(0, len(active), step):
+            chunk = active[i:i + step]
+            for entity in chunk:
+                if hasattr(entity, 'update'):
+                    entity.update(delta)
+        return len(active)
 
-def aggregate_stats(data: Dict[str, Union[int, float]]) -> Optional[str]:
-    """Converts performance dictionary into a formatted string."""
-    if not data:
-        return None
-    return " | ".join([f"{k.upper()}: {v:.2f}" for k, v in data.items()])
-
-if __name__ == "__main__":
-    tracker = FrameTracker()
-    for _ in range(10):
-        tracker.record_frame()
-        time.sleep(0.016)
-    print(f"current metrics: {tracker.get_fps()} fps")
+def create_optimized_loop(engine_callback, target_fps=144.0):
+    pacer = FramePacer(target_fps=target_fps)
+    batcher = EntityBatcher()
+    
+    def step_frame(entities):
+        ticks, avg_delta = pacer.sync()
+        processed = 0
+        for _ in range(ticks):
+            processed += batcher.optimize_ticks(entities, avg_delta)
+        engine_callback(ticks, avg_delta)
+        return processed, avg_delta
+        
+    return step_frame
