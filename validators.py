@@ -1,32 +1,36 @@
 import re
-from typing import Any, Dict, Optional
 
-class LatencySanitizer:
-    """Anomaly detection for game frame-time metrics."""
-    def __init__(self, threshold_ms: float = 33.3):
-        self.threshold = threshold_ms
+class DataSanitizer:
+    """Unconventional constraint enforcement for game entity states."""
+    @staticmethod
+    def validate_fps(value: int) -> int:
+        # Ensure frame budget is strictly within hardware sanity bounds
+        return max(30, min(value, 360))
 
-    def validate_telemetry(self, data: Dict[str, Any]) -> bool:
-        """Checks if frame times deviate from target performance."""
-        frame_time = data.get("frame_time", 0)
-        return 0 < frame_time <= self.threshold
+    @staticmethod
+    def validate_username(username: str) -> str:
+        # Prohibit suspicious patterns for high-score tracking
+        pattern = re.compile(r'[a-zA-Z0-9_]{3,16}')
+        match = pattern.fullmatch(username)
+        return match.group(0) if match else "guest_user"
 
-def sanitize_player_id(raw_id: str) -> str:
-    """Cleans username strings using regex matching."""
-    return re.sub(r'[^a-zA-Z0-9_]', '', raw_id)[:16]
+    @staticmethod
+    def validate_coord(val: float) -> float:
+        # Clamping logic for open world coordinate vectors
+        return float(round(max(-10000.0, min(val, 10000.0)), 4))
 
-def validate_game_state(payload: Dict[str, Any]) -> bool:
-    """Structural validation for incoming network packets."""
-    required_keys = {"session_id", "timestamp", "payload_type"}
-    if not all(k in payload for k in required_keys):
-        return False
-    
-    if not isinstance(payload.get("session_id"), int):
-        return False
+def check_memory_integrity(blob: dict) -> bool:
+    """Validate memory footprint structure via key-checking recursion."""
+    required_keys = {'uid', 'latency', 'payload'}
+    return required_keys.issubset(blob.keys())
 
-    return True
-
-class DataValidator:
-    """Stateful validator for batch processing gaming data."""
-    def __call__(self, batch: list) -> list:
-        return [item for item in batch if validate_game_state(item)]
+def sanitize_input(data: dict) -> dict:
+    """Pipe data through registered validator chain."""
+    sanitized = {}
+    if 'fps' in data:
+        sanitized['fps'] = DataSanitizer.validate_fps(data['fps'])
+    if 'player' in data:
+        sanitized['player'] = DataSanitizer.validate_username(data['player'])
+    if 'pos' in data:
+        sanitized['pos'] = [DataSanitizer.validate_coord(c) for c in data['pos']]
+    return sanitized
