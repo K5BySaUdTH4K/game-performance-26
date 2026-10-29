@@ -1,36 +1,24 @@
 import re
+from typing import Any, Optional
 
-class DataSanitizer:
-    """Unconventional constraint enforcement for game entity states."""
-    @staticmethod
-    def validate_fps(value: int) -> int:
-        # Ensure frame budget is strictly within hardware sanity bounds
-        return max(30, min(value, 360))
+def validate_frame_rate(fps: int) -> bool:
+    return 30 <= fps <= 360
 
-    @staticmethod
-    def validate_username(username: str) -> str:
-        # Prohibit suspicious patterns for high-score tracking
-        pattern = re.compile(r'[a-zA-Z0-9_]{3,16}')
-        match = pattern.fullmatch(username)
-        return match.group(0) if match else "guest_user"
+def sanitize_username(name: str) -> str:
+    return re.sub(r'[^a-zA-Z0-9_]', '', name)[:16]
 
-    @staticmethod
-    def validate_coord(val: float) -> float:
-        # Clamping logic for open world coordinate vectors
-        return float(round(max(-10000.0, min(val, 10000.0)), 4))
+def is_power_of_two(n: int) -> bool:
+    return (n & (n - 1) == 0) and n > 0
 
-def check_memory_integrity(blob: dict) -> bool:
-    """Validate memory footprint structure via key-checking recursion."""
-    required_keys = {'uid', 'latency', 'payload'}
-    return required_keys.issubset(blob.keys())
+def validate_memory_allocation(size: int, limit: int = 1024 * 1024 * 1024) -> bool:
+    return 0 < size <= limit
 
-def sanitize_input(data: dict) -> dict:
-    """Pipe data through registered validator chain."""
-    sanitized = {}
-    if 'fps' in data:
-        sanitized['fps'] = DataSanitizer.validate_fps(data['fps'])
-    if 'player' in data:
-        sanitized['player'] = DataSanitizer.validate_username(data['player'])
-    if 'pos' in data:
-        sanitized['pos'] = [DataSanitizer.validate_coord(c) for c in data['pos']]
-    return sanitized
+def format_latency(ms: float) -> str:
+    status = 'optimal' if ms < 20 else 'degraded' if ms < 100 else 'critical'
+    return f'{ms:.2f}ms [{status.upper()}]'
+
+def validate_config_value(key: str, value: Any) -> bool:
+    constraints = {'fov': range(60, 120), 'sensitivity': [x * 0.1 for x in range(1, 101)]}
+    if key in constraints:
+        return value in constraints[key]
+    return True
