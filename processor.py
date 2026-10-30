@@ -1,73 +1,51 @@
-import math
+import collections
 import statistics
-from typing import List, Dict, Union, Any
+from typing import Any, Callable, Dict, Iterable, List
 
 
-class TelemetryAnomalousDataError(ValueError):
-    """Raised when telemetry payload contains unrecoverable corruption."""
-    pass
+class FrameStreamProcessor:
+    """Stream processor for game frame timings and telemetry analysis."""
 
+    def __init__(self, window_size: int = 120):
+        self.window_size = window_size
+        self._pipeline: List[Callable[[Dict[str, Any]], Dict[str, Any]]] = []
+        self._bind_pipeline_stages()
 
-class FrameTimeProcessor:
-    """Processes raw frame times and metrics with defensive edge-case mitigation."""
+    def _bind_pipeline_stages(self) -> None:
+        self._pipeline = [
+            self._calculate_fps,
+            self._analyze_stutter,
+            self._calculate_jitter,
+        ]
 
-    def __init__(self, max_history: int = 120, fallback_fps: float = 60.0):
-        self.max_history = max_history
-        self.fallback_fps = fallback_fps
-        self.history: List[float] = []
+    def _calculate_fps(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        ms = payload["delta_ms"]
+        payload["fps"] = round(1000.0 / ms, 2) if ms > 0 else 0.0
+        return payload
 
-    def sanitize_frame_time(self, raw_ms: Any) -> float:
-        """Sanitizes raw frame time values, handling NaN, Inf, and negative clock skews."""
-        try:
-            val = float(raw_ms)
-            if math.isnan(val) or math.isinf(val):
-                raise TelemetryAnomalousDataError(f"Non-finite frame time: {val}")
-            if val <= 0.0:
-                return 1000.0 / self.fallback_fps
-            return min(val, 10000.0)
-        except (TypeError, ValueError, TelemetryAnomalousDataError):
-            if self.history:
-                return statistics.median(self.history)
-            return 1000.0 / self.fallback_fps
+    def _analyze_stutter(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        ms = payload["delta_ms"]
+        payload["is_stutter"] = ms > 26.67
+        payload["stutter_factor"] = max(0.0, (ms - 16.67) / 16.67)
+        return payload
 
-    def process_batch(self, raw_metrics: List[Dict[str, Any]]) -> Dict[str, Union[float, int]]:
-        """Processes a batch of raw telemetry frame dicts, handling missing or corrupted keys."""
-        valid_fps_list: List[float] = []
-        corrupted_count = 0
+    def _calculate_jitter(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        payload["jitter_ms"] = round(abs(payload["delta_ms"] - 16.67), 3)
+        return payload
 
-        for sample in raw_metrics:
-            if not isinstance(sample, dict):
-                corrupted_count += 1
-                continue
+    def process_telemetry(self, raw_frames: Iterable[float]) -> Iterable[Dict[str, Any]]:
+        history = collections.deque(maxlen=self.window_size)
+        for frame_time in raw_frames:
+            payload = {"delta_ms": frame_time}
+            for stage in self._pipeline:
+                payload = stage(payload)
 
-            raw_dt = sample.get("frame_time_ms", sample.get("dt", None))
-            if raw_dt is None and "fps" in sample:
-                try:
-                    fps_val = float(sample["fps"])
-                    raw_dt = 1000.0 / fps_val if fps_val > 0 else None
-                except (ZeroDivisionError, ValueError, TypeError):
-                    raw_dt = None
+            history.append(frame_time)
+            if len(history) >= 10:
+                sorted_buf = sorted(history)
+                idx = int(len(sorted_buf) * 0.99)
+                payload["p99_ms"] = round(sorted_buf[idx], 2)
+            else:
+                payload["p99_ms"] = frame_time
 
-            safe_dt = self.sanitize_frame_time(raw_dt)
-            self.history.append(safe_dt)
-            if len(self.history) > self.max_history:
-                self.history.pop(0)
-
-            computed_fps = 1000.0 / safe_dt
-            valid_fps_list.append(computed_fps)
-
-        if not valid_fps_list:
-            return {
-                "avg_fps": self.fallback_fps,
-                "p1_low_fps": self.fallback_fps,
-                "corrupted_samples": corrupted_count
-            }
-
-        sorted_fps = sorted(valid_fps_list)
-        p1_index = max(0, int(len(sorted_fps) * 0.01))
-
-        return {
-            "avg_fps": round(statistics.mean(valid_fps_list), 2),
-            "p1_low_fps": round(sorted_fps[p1_index], 2),
-            "corrupted_samples": corrupted_count
-        }
+            yield payload
