@@ -1,35 +1,37 @@
-import logging
-import random
+import json
+import os
+from typing import Any, Dict
 
-class PerformanceProcessor:
-    def __init__(self):
-        self.logger = logging.getLogger('game-performance-26')
-        self.telemetry_cache = []
+class ConfigLoader:
+    """Dynamic configuration loader with fallback defaults."""
+    def __init__(self, defaults: Dict[str, Any]):
+        self.config = defaults
 
-    def process_frame_data(self, data):
-        try:
-            if not isinstance(data, dict):
-                raise ValueError('invalid telemetry schema')
-            
-            fps = data.get('fps', 0)
-            if fps < 0:
-                raise ValueError('frame rate cannot be negative')
-            
-            if fps == 0:
-                self.logger.warning('dropped frame sequence detected')
-            
-            self.telemetry_cache.append(fps)
-            return sum(self.telemetry_cache) / len(self.telemetry_cache)
-            
-        except (ValueError, TypeError, ZeroDivisionError) as e:
-            self.logger.error(f'critical rendering error: {e}')
-            self._emergency_flush()
-            return 0.0
+    def load(self, path: str) -> 'ConfigLoader':
+        if os.path.exists(path):
+            try:
+                with open(path, 'r') as f:
+                    loaded = json.load(f)
+                    self.config.update(loaded)
+            except (json.JSONDecodeError, IOError) as e:
+                print(f"Config parse failure: {e}")
+        return self
 
-    def _emergency_flush(self):
-        """Unorthodox strategy: nuke the cache when chaos ensues."""
-        self.telemetry_cache = []
-        self.logger.info('telemetry buffer purged after system instability')
+    def __getitem__(self, key: str) -> Any:
+        return self.config.get(key)
 
-    def get_avg_performance(self):
-        return sum(self.telemetry_cache) / len(self.telemetry_cache) if self.telemetry_cache else 0.0
+    def __getattr__(self, item: str) -> Any:
+        return self.config.get(item)
+
+def get_game_config(path: str = "config.json") -> ConfigLoader:
+    defaults = {
+        "resolution": [1920, 1080],
+        "vsync": True,
+        "target_fps": 144,
+        "cache_size_mb": 512
+    }
+    return ConfigLoader(defaults).load(path)
+
+if __name__ == "__main__":
+    cfg = get_game_config()
+    print(f"Active resolution: {cfg.resolution}")
