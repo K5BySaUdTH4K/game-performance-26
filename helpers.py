@@ -1,37 +1,42 @@
 import time
-import functools
-from typing import Callable, Any, Dict
+from collections import deque
+from typing import Callable, Generator, Tuple
 
-def frame_throttle(ms: int = 16):
-    """Decorator to enforce frame budget constraints on functions."""
-    def decorator(func: Callable):
-        last_call = [0.0]
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            elapsed = (time.perf_counter() - last_call[0]) * 1000
-            if elapsed < ms:
-                time.sleep((ms - elapsed) / 1000)
-            result = func(*args, **kwargs)
-            last_call[0] = time.perf_counter()
-            return result
-        return wrapper
-    return decorator
+def smooth_fps_calculator(window_size: int = 60) -> Generator[float, float, None]:
+    """Coroutine generator yielding rolling average FPS from streamed delta times."""
+    history: deque[float] = deque(maxlen=window_size)
+    dt = yield 0.0
+    while True:
+        if dt and dt > 0:
+            history.append(dt)
+        avg_dt = sum(history) / len(history) if history else 0.01667
+        dt = yield (1.0 / avg_dt) if avg_dt > 0 else 0.0
 
-class TelemetryBuffer:
-    """Circular buffer for game telemetry events."""
-    def __init__(self, size: int = 100):
-        self.size = size
-        self.buffer = []
+def isolate_frame_spikes(frame_times: list[float], threshold_ms: float = 33.3) -> list[Tuple[int, float]]:
+    """Identify frame indices and duration where frame time exceeds latency target."""
+    return [(idx, ft) for idx, ft in enumerate(frame_times) if (ft * 1000.0) > threshold_ms]
 
-    def push(self, event: Dict[str, Any]) -> None:
-        if len(self.buffer) >= self.size:
-            self.buffer.pop(0)
-        event.update({'timestamp': time.time()})
-        self.buffer.append(event)
+class FrameProfileContext:
+    """Context manager measuring execution duration in milliseconds for performance tracking."""
+    def __init__(self, tag: str, callback: Callable[[str, float], None] | None = None):
+        self.tag = tag
+        self.callback = callback
+        self.start_ns = 0
 
-    def export_batch(self) -> list:
-        return self.buffer.copy()
+    def __enter__(self):
+        self.start_ns = time.perf_counter_ns()
+        return self
 
-def normalize_latency(value: float, min_val: float = 0.0, max_val: float = 200.0) -> float:
-    """Linear normalization for network jitter analysis."""
-    return max(0.0, min(1.0, (value - min_val) / (max_val - min_val)))
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        elapsed_ms = (time.perf_counter_ns() - self.start_ns) / 1e6
+        if self.callback:
+            self.callback(self.tag, elapsed_ms)
+        return False
+
+def pack_render_flags(*flags: bool) -> int:
+    """Pack boolean rendering feature toggles into a single integer bitfield."""
+    return sum(1 << i for i, flag in enumerate(flags) if flag)
+
+def unpack_render_flags(mask: int, count: int) -> list[bool]:
+    """Unpack integer bitfield back into individual boolean rendering feature flags."""
+    return [bool(mask & (1 << i)) for i in range(count)]
