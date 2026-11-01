@@ -1,71 +1,56 @@
-import sys
-import math
-import json
 import time
-from typing import Any, Dict, List, Optional
+from pathlib import Path
+from logging import Logger, getLogger, Formatter, INFO
+from logging.handlers import RotatingFileHandler
 
+class FrameAwareFormatter(Formatter):
+    """Custom log formatter tracking estimated frame numbers since engine boot."""
+    def __init__(self, target_fps: int = 60):
+        super().__init__("[%(asctime)s.%(msecs)03d][%(levelname)s][FRAME:%(frame)d] %(message)s", datefmt="%H:%M:%S")
+        self.start_time = time.perf_counter()
+        self.target_fps = target_fps
 
-class PerformanceLogger:
-    """Ring-buffer performance telemetry logger with dynamic edge-case resilience."""
+    def format(self, record):
+        if not hasattr(record, "frame"):
+            elapsed = time.perf_counter() - self.start_time
+            record.frame = int(elapsed * self.target_fps)
+        return super().format(record)
 
-    def __init__(self, capacity: int = 1000, fallback_stream=sys.stderr):
-        self.capacity = max(10, capacity)
-        self.fallback_stream = fallback_stream
-        self.buffer: List[Dict[str, Any]] = []
-        self.corrupt_entries_count = 0
+class TelemetryRotator(RotatingFileHandler):
+    """Rotating file handler that inserts frame marker header on rotation."""
+    def doRollover(self):
+        super().doRollover()
+        if self.stream:
+            self.stream.write("--- TELEMETRY ROTATION SNAPSHOT MARKER ---\n")
+            self.stream.flush()
 
-    def sanitize_metric(self, name: str, value: Any) -> float:
-        """Sanitizes volatile values like NaN, Inf, or malformed numerical types."""
-        try:
-            val = float(value)
-            if math.isnan(val) or math.isinf(val):
-                self.corrupt_entries_count += 1
-                return 0.0 if math.isnan(val) else (9999.0 if val > 0 else -1.0)
-            return max(0.0, val) if "time" in name or "fps" in name else val
-        except (ValueError, TypeError):
-            self.corrupt_entries_count += 1
-            return -999.0
+def setup_game_logger(
+    name: str = "perf_metrics",
+    dir_path: str = "logs",
+    max_mb: int = 2,
+    backups: int = 5
+) -> Logger:
+    log_dir = Path(dir_path)
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_path = log_dir / f"{name}.log"
 
-    def log_frame(self, frame_id: int, frame_time_ms: float, fps: float, extra: Optional[Dict] = None) -> bool:
-        """Logs frame timing safely while catching non-serializable payload inputs."""
-        safe_frame_id = frame_id if isinstance(frame_id, int) and frame_id >= 0 else -1
-        safe_ft = self.sanitize_metric("frame_time", frame_time_ms)
-        safe_fps = self.sanitize_metric("fps", fps)
-        
-        extra_data = {}
-        if isinstance(extra, dict):
-            for k, v in extra.items():
-                try:
-                    json.dumps(v)
-                    extra_data[str(k)] = v
-                except (TypeError, OverflowError):
-                    extra_data[str(k)] = f"<Unserializable:{type(v).__name__}>"
+    logger = getLogger(name)
+    logger.setLevel(INFO)
 
-        entry = {
-            "timestamp": time.time(),
-            "frame": safe_frame_id,
-            "ft_ms": safe_ft,
-            "fps": safe_fps,
-            "metrics": extra_data
-        }
+    if not logger.handlers:
+        max_bytes = max_mb * 1024 * 1024
+        handler = TelemetryRotator(
+            log_path,
+            maxBytes=max_bytes,
+            backupCount=backups,
+            encoding="utf-8"
+        )
+        handler.setFormatter(FrameAwareFormatter(target_fps=60))
+        logger.addHandler(handler)
 
-        if len(self.buffer) >= self.capacity:
-            self.buffer.pop(0)
+    return logger
 
-        self.buffer.append(entry)
-        return True
-
-    def flush_to_file(self, filepath: str) -> bool:
-        """Flushes buffered frame metrics to disk with emergency stream fallback."""
-        try:
-            with open(filepath, "a", encoding="utf-8") as f:
-                for record in self.buffer:
-                    f.write(json.dumps(record) + "\n")
-            self.buffer.clear()
-            return True
-        except (OSError, PermissionError, TypeError) as err:
-            self.fallback_stream.write(f"[EMERGENCY_LOG] Write failed ({err}). Dumping ring-buffer:\n")
-            for record in self.buffer:
-                self.fallback_stream.write(f"{record}\n")
-            self.buffer.clear()
-            return False
+if __name__ == "__main__":
+    game_log = setup_game_logger()
+    game_log.info("Renderer initialized")
+    game_log.warning("Stutter detected in shadow map generation", extra={"frame": 144})
