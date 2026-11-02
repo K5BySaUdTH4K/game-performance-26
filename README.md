@@ -1,47 +1,57 @@
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 # game-performance-26
 
-`game-performance-26` is a lightweight Python toolkit designed to monitor and optimize frame latency and system resource utilization during runtime. It provides developers with real-time telemetry to identify bottlenecks in game loops and heavy background processes.
+`game-performance-26` is a lightweight Python telemetry engine designed to capture, log, and analyze real-time frame rates and hardware utilization across DirectX and Vulkan titles. It provides game developers and hardware reviewers with automated frame-time analysis, micro-stutter detection, and overlay-ready metrics exports.
 
 ## Features
-* **Frame-Time Tracking:** Captures high-precision frame delivery times to detect micro-stuttering in Python-based engines.
-* **Process Snapshotting:** Logs CPU and memory consumption per thread to isolate performance-heavy logic blocks.
-* **Threshold Alerts:** Triggers user-defined callbacks when latency spikes exceed specific millisecond benchmarks.
-* **JSON Exporting:** Automates data serialization for post-session analysis in external tools like Excel or Grafana.
+
+- **Low-Overhead Frame-Time Tracking**: Captures sub-millisecond frame intervals, calculating real-time averages along with 1% and 0.1% low percentiles.
+- **Hardware Telemetry Integration**: Logs GPU/CPU clock speeds, thermal limits, power draw, and VRAM utilization via NVML and native system APIs.
+- **Automated Report Generation**: Exports benchmark sessions into clean CSV, JSON, and pre-formatted Markdown summary reports.
+- **Process Auto-Attach**: Detects game launches dynamically via executable monitoring without requiring manual process IDs.
 
 ## Installation
 
-Ensure you have Python 3.8+ installed. You can install the package directly via pip:
+Ensure you have Python 3.9+ installed on your system.
 
 ```bash
 git clone https://github.com/Developer/game-performance-26.git
 cd game-performance-26
 pip install -r requirements.txt
+pip install .
 ```
 
-## Usage
+## Quick Start
 
-Integrate the monitor into your existing game loop to begin capturing telemetry data instantly:
+The following example attaches the monitor to a running game session, collects 60 seconds of performance data, and exports a summary report.
 
 ```python
-from performance import Monitor
+import time
+from game_perf import BenchmarkMonitor, ReportExporter
 
-# Initialize monitor with a 16.6ms target (60 FPS)
-perf = Monitor(threshold_ms=16.6)
+# Initialize monitor for the target process
+monitor = BenchmarkMonitor(target_process="Cyberpunk2077.exe", interval_ms=100)
 
-while running:
-    with perf.track_frame():
-        # Your game logic here
-        update_game_state()
-        render_frame()
+print("Waiting for target process...")
+monitor.start()
 
-# Save performance data to report.json
-perf.export_log("report.json")
+# Collect metrics for 60 seconds
+time.sleep(60)
+
+# Stop session and calculate results
+session_data = monitor.stop()
+
+# Print metrics to console
+print(f"Average FPS: {session_data.avg_fps:.2f}")
+print(f"1% Low FPS:  {session_data.low_1_percent:.2f}")
+print(f"Max GPU Temp: {session_data.max_gpu_temp}°C")
+
+# Export to CSV
+exporter = ReportExporter(session_data)
+exporter.to_csv("cyberpunk_benchmark.csv")
 ```
 
-## Contributing
-Contributions are welcome. Please open an issue to discuss proposed enhancements or report bugs found during testing.
-
 ## License
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
