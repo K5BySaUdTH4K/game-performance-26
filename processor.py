@@ -1,37 +1,34 @@
-import json
-import os
-from typing import Any, Dict
+import functools
+import gc
 
-class ConfigLoader:
-    """Dynamic configuration loader with fallback defaults."""
-    def __init__(self, defaults: Dict[str, Any]):
-        self.config = defaults
+class EntityProcessor:
+    def __init__(self):
+        self._cache = {}
+        gc.disable()
 
-    def load(self, path: str) -> 'ConfigLoader':
-        if os.path.exists(path):
-            try:
-                with open(path, 'r') as f:
-                    loaded = json.load(f)
-                    self.config.update(loaded)
-            except (json.JSONDecodeError, IOError) as e:
-                print(f"Config parse failure: {e}")
-        return self
+    def optimized_update(self, entities):
+        """
+        JIT-style memoization of entity state updates with
+        manual garbage collection triggers to reduce frame stutter.
+        """
+        processed = []
+        for entity in entities:
+            eid = id(entity)
+            if eid not in self._cache:
+                self._cache[eid] = self._transform(entity)
+            processed.append(self._cache[eid])
+        
+        if len(self._cache) > 1000:
+            self._cache.clear()
+            gc.collect()
+        return processed
 
-    def __getitem__(self, key: str) -> Any:
-        return self.config.get(key)
+    @staticmethod
+    @functools.lru_cache(maxsize=128)
+    def _transform(entity):
+        # Simulation of expensive coordinate calculation
+        x, y = entity.get('pos', (0, 0))
+        return (x * 1.0001, y * 1.0001)
 
-    def __getattr__(self, item: str) -> Any:
-        return self.config.get(item)
-
-def get_game_config(path: str = "config.json") -> ConfigLoader:
-    defaults = {
-        "resolution": [1920, 1080],
-        "vsync": True,
-        "target_fps": 144,
-        "cache_size_mb": 512
-    }
-    return ConfigLoader(defaults).load(path)
-
-if __name__ == "__main__":
-    cfg = get_game_config()
-    print(f"Active resolution: {cfg.resolution}")
+    def __del__(self):
+        gc.enable()
