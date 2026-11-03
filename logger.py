@@ -1,56 +1,54 @@
-import time
-from pathlib import Path
-from logging import Logger, getLogger, Formatter, INFO
+import logging
 from logging.handlers import RotatingFileHandler
+import os
+import sys
+import time
 
-class FrameAwareFormatter(Formatter):
-    """Custom log formatter tracking estimated frame numbers since engine boot."""
-    def __init__(self, target_fps: int = 60):
-        super().__init__("[%(asctime)s.%(msecs)03d][%(levelname)s][FRAME:%(frame)d] %(message)s", datefmt="%H:%M:%S")
-        self.start_time = time.perf_counter()
-        self.target_fps = target_fps
 
-    def format(self, record):
-        if not hasattr(record, "frame"):
-            elapsed = time.perf_counter() - self.start_time
-            record.frame = int(elapsed * self.target_fps)
-        return super().format(record)
+class FrameMetricAdapter(logging.LoggerAdapter):
+    """Logger adapter enriching log entries with frame budget calculations."""
 
-class TelemetryRotator(RotatingFileHandler):
-    """Rotating file handler that inserts frame marker header on rotation."""
-    def doRollover(self):
-        super().doRollover()
-        if self.stream:
-            self.stream.write("--- TELEMETRY ROTATION SNAPSHOT MARKER ---\n")
-            self.stream.flush()
+    def process(self, msg, kwargs):
+        extra = kwargs.get("extra", {})
+        fps = extra.get("fps", 60.0)
+        frame_ms = (1000.0 / fps) if fps > 0 else 0.0
+        ticks = time.perf_counter_ns()
+        prefix = f"[t+{ticks}ns | frame_budget={frame_ms:.2f}ms]"
+        return f"{prefix} {msg}", kwargs
 
-def setup_game_logger(
-    name: str = "perf_metrics",
-    dir_path: str = "logs",
-    max_mb: int = 2,
-    backups: int = 5
-) -> Logger:
-    log_dir = Path(dir_path)
-    log_dir.mkdir(parents=True, exist_ok=True)
-    log_path = log_dir / f"{name}.log"
 
-    logger = getLogger(name)
-    logger.setLevel(INFO)
+def setup_performance_logger(
+    name: str = "game_perf",
+    log_file: str = "logs/metrics.log",
+    max_bytes: int = 1048576,
+    backup_count: int = 3,
+) -> FrameMetricAdapter:
+    os.makedirs(os.path.dirname(log_file) or ".", exist_ok=True)
 
-    if not logger.handlers:
-        max_bytes = max_mb * 1024 * 1024
-        handler = TelemetryRotator(
-            log_path,
-            maxBytes=max_bytes,
-            backupCount=backups,
-            encoding="utf-8"
-        )
-        handler.setFormatter(FrameAwareFormatter(target_fps=60))
-        logger.addHandler(handler)
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
+    if logger.hasHandlers():
+        logger.handlers.clear()
 
-    return logger
+    formatter = logging.Formatter(
+        fmt="%(asctime)s.%(msecs)03d | %(levelname)-7s | %(message)s",
+        datefmt="%H:%M:%S",
+    )
 
-if __name__ == "__main__":
-    game_log = setup_game_logger()
-    game_log.info("Renderer initialized")
-    game_log.warning("Stutter detected in shadow map generation", extra={"frame": 144})
+    rotator = RotatingFileHandler(
+        filename=log_file,
+        maxBytes=max_bytes,
+        backupCount=backup_count,
+        encoding="utf-8",
+    )
+    rotator.setFormatter(formatter)
+    rotator.setLevel(logging.DEBUG)
+
+    console = logging.StreamHandler(sys.stdout)
+    console.setFormatter(formatter)
+    console.setLevel(logging.WARNING)
+
+    logger.addHandler(rotator)
+    logger.addHandler(console)
+
+    return FrameMetricAdapter(logger, {})
