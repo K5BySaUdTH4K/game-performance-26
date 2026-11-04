@@ -1,24 +1,34 @@
-import re
-from typing import Any, Optional
+import time
+import functools
+import random
 
-def validate_frame_rate(fps: int) -> bool:
-    return 30 <= fps <= 360
+def retry_network_ops(retries=3, delay=1.0, backoff=2.0):
+    """Decorator for jittered exponential backoff on flaky network calls."""
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            attempt = 0
+            current_delay = delay
+            while attempt < retries:
+                try:
+                    return func(*args, **kwargs)
+                except (ConnectionError, TimeoutError) as e:
+                    attempt += 1
+                    if attempt == retries:
+                        raise e
+                    sleep_time = current_delay + random.uniform(0, 0.1 * current_delay)
+                    time.sleep(sleep_time)
+                    current_delay *= backoff
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
 
-def sanitize_username(name: str) -> str:
-    return re.sub(r'[^a-zA-Z0-9_]', '', name)[:16]
-
-def is_power_of_two(n: int) -> bool:
-    return (n & (n - 1) == 0) and n > 0
-
-def validate_memory_allocation(size: int, limit: int = 1024 * 1024 * 1024) -> bool:
-    return 0 < size <= limit
-
-def format_latency(ms: float) -> str:
-    status = 'optimal' if ms < 20 else 'degraded' if ms < 100 else 'critical'
-    return f'{ms:.2f}ms [{status.upper()}]'
-
-def validate_config_value(key: str, value: Any) -> bool:
-    constraints = {'fov': range(60, 120), 'sensitivity': [x * 0.1 for x in range(1, 101)]}
-    if key in constraints:
-        return value in constraints[key]
-    return True
+class NetworkValidator:
+    @staticmethod
+    @retry_network_ops(retries=5, delay=0.5)
+    def validate_connection(endpoint):
+        """Simulated network check with intermittent failure handling."""
+        import random
+        if random.random() < 0.7:
+            raise ConnectionError("Packet loss detected during handshake")
+        return True
