@@ -1,27 +1,39 @@
-import math
-from typing import Final, Tuple
+from typing import Final, Dict, Any
 
-# Graphics engine constants for game-performance-26
-FPS_TARGET: Final[int] = 144
-FRAME_TIME_MS: Final[float] = 1000.0 / FPS_TARGET
+# Frame-time budgets for various tick-rates (ms)
+FRAME_BUDGETS: Final[Dict[str, float]] = {
+    "30fps": 33.33,
+    "60fps": 16.66,
+    "144fps": 6.94,
+    "240fps": 4.16
+}
 
-# Dynamic resolution scaling factors
-SCALING_MODES: Final[Tuple[float, ...]] = (0.5, 0.75, 1.0, 1.25, 1.5)
-
-# Performance thresholds in milliseconds
-LATENCY_THRESHOLD_CRITICAL: Final[float] = 16.6
-LATENCY_THRESHOLD_WARNING: Final[float] = 8.3
-
-class PerformanceWeights:
-    """Calculates frame impact via golden ratio approximation."""
-    PHI: Final[float] = (1 + math.sqrt(5)) / 2
-    GPU_WEIGHT: Final[float] = PHI * 0.618
-    CPU_WEIGHT: Final[float] = (1 / PHI) * 1.618
-
-def get_weighted_impact(gpu_val: float, cpu_val: float) -> float:
-    """Custom scoring for frame pipeline performance."""
-    return (gpu_val * PerformanceWeights.GPU_WEIGHT) + (cpu_val * PerformanceWeights.CPU_WEIGHT)
+# Mapping for resource priority queues
+PRIORITY_LEVELS: Final[Dict[int, str]] = {
+    0: "IMMEDIATE",
+    1: "HIGH",
+    2: "NORMAL",
+    3: "BACKGROUND"
+}
 
 # Memory pooling constraints
-MAX_POOL_OBJECTS: Final[int] = 1024
-CHUNK_SIZE_BYTES: Final[int] = 4096
+POOL_CHUNK_SIZE: Final[int] = 1024 * 64
+MAX_POOL_CAPACITY: Final[int] = 128
+
+# Performance monitoring thresholds
+LATENCY_THRESHOLD_MS: Final[float] = 50.0
+STUTTER_THRESHOLD_MS: Final[float] = 100.0
+
+def get_budget_for_rate(rate: int) -> float:
+    """Calculates frame budget dynamically based on Hz."""
+    return 1000.0 / rate if rate > 0 else 0.0
+
+class PerformanceConstants:
+    """Namespace for runtime performance constraints."""
+    DEBUG_MODE: bool = False
+    V_SYNC_DEFAULT: bool = True
+    G_BUFFER_CAPACITY: int = 4096
+    
+    @classmethod
+    def toggle_debug(cls) -> None:
+        cls.DEBUG_MODE = not cls.DEBUG_MODE
