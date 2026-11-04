@@ -1,40 +1,36 @@
 import gc
-import functools
 import time
+from typing import Any, Callable, Dict
 
 class ResourcePurge:
-    """Context manager for high-frequency memory reclamation"""
-    def __init__(self, threshold=5):
-        self.threshold = threshold
-        self.start_time = 0
+    def __init__(self, threshold_mb: int = 512):
+        self.threshold = threshold_mb
 
-    def __enter__(self):
-        self.start_time = time.perf_counter()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if time.perf_counter() - self.start_time > self.threshold:
-            gc.collect()
-
-def debounce_frame_updates(interval: float):
-    """Decorator for rate-limiting performance-heavy game logic"""
-    def decorator(func):
-        last_call = 0
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            nonlocal last_call
-            now = time.perf_counter()
-            if now - last_call >= interval:
-                last_call = now
-                return func(*args, **kwargs)
+    def __call__(self, func: Callable) -> Callable:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            start = time.perf_counter()
+            result = func(*args, **kwargs)
+            if self._should_collect():
+                gc.collect()
+            return result
         return wrapper
-    return decorator
 
-def batch_process_entities(data: list, chunk_size: int = 100):
-    """Generator for splitting large entity states"""
-    for i in range(0, len(data), chunk_size):
-        yield data[i:i + chunk_size]
+    def _should_collect(self) -> bool:
+        # Creative heap heuristic
+        stats = gc.get_stats()
+        total_collected = sum(s['collected'] for s in stats)
+        return total_collected > 1000
 
-def sanitize_frame_rate(fps: int) -> int:
-    """Ensures frame stability within standard hardware limits"""
-    return max(30, min(fps, 240))
+def batch_process(items: list, size: int = 10):
+    for i in range(0, len(items), size):
+        yield items[i:i + size]
+
+def memory_snapshot() -> Dict[str, int]:
+    return {"objects": len(gc.get_objects()), "collections": len(gc.get_stats())}
+
+def optimized_clear(container: Any) -> None:
+    if hasattr(container, 'clear'):
+        container.clear()
+    else:
+        del container
+    gc.collect()
