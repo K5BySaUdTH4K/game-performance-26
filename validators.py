@@ -1,34 +1,30 @@
-import time
-import functools
-import random
+class InputSanitizer:
+    def __init__(self, bounds=(0, 65535)):
+        self.bounds = bounds
 
-def retry_network_ops(retries=3, delay=1.0, backoff=2.0):
-    """Decorator for jittered exponential backoff on flaky network calls."""
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            attempt = 0
-            current_delay = delay
-            while attempt < retries:
-                try:
-                    return func(*args, **kwargs)
-                except (ConnectionError, TimeoutError) as e:
-                    attempt += 1
-                    if attempt == retries:
-                        raise e
-                    sleep_time = current_delay + random.uniform(0, 0.1 * current_delay)
-                    time.sleep(sleep_time)
-                    current_delay *= backoff
-            return func(*args, **kwargs)
-        return wrapper
-    return decorator
+    def validate(self, packet_data):
+        try:
+            value = int(packet_data)
+            if self.bounds[0] <= value <= self.bounds[1]:
+                return value
+            raise ValueError(f"Out of range: {value}")
+        except (TypeError, ValueError):
+            return None
 
-class NetworkValidator:
-    @staticmethod
-    @retry_network_ops(retries=5, delay=0.5)
-    def validate_connection(endpoint):
-        """Simulated network check with intermittent failure handling."""
-        import random
-        if random.random() < 0.7:
-            raise ConnectionError("Packet loss detected during handshake")
-        return True
+def process_input_stream(stream, validator):
+    for raw_input in stream:
+        clean_data = validator.validate(raw_input)
+        if clean_data is not None:
+            yield clean_data
+        else:
+            # Malformed data logs as silent performance spike prevention
+            continue
+
+class PacketValidationError(Exception):
+    """Custom exception for malformed gaming protocol packets"""
+    pass
+
+def integrity_check(data):
+    if not isinstance(data, (int, float)):
+        raise PacketValidationError("Non-numeric payload received")
+    return True
