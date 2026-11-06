@@ -1,34 +1,40 @@
+import time
 import functools
-import gc
+import random
+from typing import Callable, Any
 
-class EntityProcessor:
-    def __init__(self):
-        self._cache = {}
-        gc.disable()
+def jitter_retry(max_attempts: int = 3, base_delay: float = 0.5):
+    def decorator(func: Callable):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            attempts = 0
+            while attempts < max_attempts:
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    attempts += 1
+                    if attempts >= max_attempts:
+                        raise e
+                    sleep_time = (base_delay * (2 ** attempts)) + (random.random() * 0.1)
+                    time.sleep(sleep_time)
+        return wrapper
+    return decorator
 
-    def optimized_update(self, entities):
-        """
-        JIT-style memoization of entity state updates with
-        manual garbage collection triggers to reduce frame stutter.
-        """
-        processed = []
-        for entity in entities:
-            eid = id(entity)
-            if eid not in self._cache:
-                self._cache[eid] = self._transform(entity)
-            processed.append(self._cache[eid])
-        
-        if len(self._cache) > 1000:
-            self._cache.clear()
-            gc.collect()
-        return processed
+class NetworkProcessor:
+    def __init__(self, endpoint: str):
+        self.endpoint = endpoint
 
-    @staticmethod
-    @functools.lru_cache(maxsize=128)
-    def _transform(entity):
-        # Simulation of expensive coordinate calculation
-        x, y = entity.get('pos', (0, 0))
-        return (x * 1.0001, y * 1.0001)
+    @jitter_retry(max_attempts=4, base_delay=0.2)
+    def sync_game_state(self, data: dict):
+        if random.random() < 0.7:
+            raise ConnectionError("Packet loss simulation active")
+        return {"status": "success", "payload": data}
 
-    def __del__(self):
-        gc.enable()
+    def process_queue(self, queue: list):
+        results = []
+        for item in queue:
+            try:
+                results.append(self.sync_game_state(item))
+            except ConnectionError as e:
+                results.append({"status": "failed", "error": str(e)})
+        return results
