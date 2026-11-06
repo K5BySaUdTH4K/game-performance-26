@@ -1,36 +1,46 @@
-import gc
+import functools
 import time
-from typing import Any, Callable, Dict
+import collections
 
-class ResourcePurge:
-    def __init__(self, threshold_mb: int = 512):
-        self.threshold = threshold_mb
+def lru_cache_with_ttl(seconds: int, maxsize: int = 128):
+    """Hybrid caching strategy using time-to-live expiration."""
+    def decorator(func):
+        cache = collections.OrderedDict()
 
-    def __call__(self, func: Callable) -> Callable:
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            start = time.perf_counter()
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            key = (args, frozenset(kwargs.items()))
+            now = time.monotonic()
+            
+            if key in cache:
+                result, timestamp = cache[key]
+                if now - timestamp < seconds:
+                    return result
+                del cache[key]
+            
             result = func(*args, **kwargs)
-            if self._should_collect():
-                gc.collect()
+            cache[key] = (result, now)
+            
+            if len(cache) > maxsize:
+                cache.popitem(last=False)
             return result
         return wrapper
+    return decorator
 
-    def _should_collect(self) -> bool:
-        # Creative heap heuristic
-        stats = gc.get_stats()
-        total_collected = sum(s['collected'] for s in stats)
-        return total_collected > 1000
+def batch_process_generator(data, size=64):
+    """Memory-efficient generator for batching large game datasets."""
+    it = iter(data)
+    while True:
+        batch = []
+        for _ in range(size):
+            try:
+                batch.append(next(it))
+            except StopIteration:
+                if batch:
+                    yield batch
+                return
+        yield batch
 
-def batch_process(items: list, size: int = 10):
-    for i in range(0, len(items), size):
-        yield items[i:i + size]
-
-def memory_snapshot() -> Dict[str, int]:
-    return {"objects": len(gc.get_objects()), "collections": len(gc.get_stats())}
-
-def optimized_clear(container: Any) -> None:
-    if hasattr(container, 'clear'):
-        container.clear()
-    else:
-        del container
-    gc.collect()
+def fast_math_lerp(a, b, t):
+    """Linear interpolation using optimized arithmetic inline."""
+    return a + t * (b - a)
