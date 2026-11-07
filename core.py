@@ -1,58 +1,35 @@
+from typing import Dict, List, Optional, Union
 import time
-from collections import deque
 
-class FramePacer:
-    """Adaptive frame time stabilizer with ring-buffered tick deltas."""
-    
-    def __init__(self, target_fps=60.0, sample_size=120):
-        self.target_frame_time = 1.0 / target_fps
-        self.samples = deque(maxlen=sample_size)
-        self.last_tick = time.perf_counter()
-        self._accumulator = 0.0
+class FrameOptimizer:
+    """Calculates dynamic frame scaling for game-performance-26 engine."""
 
-    def sync(self):
-        now = time.perf_counter()
-        delta = now - self.last_tick
-        self.last_tick = now
-        self.samples.append(delta)
+    def __init__(self, target_fps: int = 60) -> None:
+        self.target_fps: int = target_fps
+        self.history: List[float] = []
+
+    def compute_scaling_factor(self, current_frame_time: float) -> float:
+        """Determines resolution scale multiplier based on frame drift."""
+        self.history.append(current_frame_time)
+        if len(self.history) > 10:
+            self.history.pop(0)
         
-        avg_delta = sum(self.samples) / len(self.samples)
-        self._accumulator += delta
+        avg_time: float = sum(self.history) / len(self.history)
+        ideal_time: float = 1.0 / self.target_fps
         
-        ticks_due = 0
-        while self._accumulator >= self.target_frame_time:
-            ticks_due += 1
-            self._accumulator -= self.target_frame_time
-            
-        return ticks_due, avg_delta
-
-class EntityBatcher:
-    """Sliced batch updater for non-blocking entity ticks."""
-    
-    def __init__(self, slice_ratio=4):
-        self.slice_ratio = slice_ratio
-
-    def optimize_ticks(self, entities, delta):
-        active = [e for e in entities if getattr(e, 'is_active', True)]
-        step = max(1, len(active) // self.slice_ratio)
+        if avg_time <= ideal_time:
+            return 1.0
         
-        for i in range(0, len(active), step):
-            chunk = active[i:i + step]
-            for entity in chunk:
-                if hasattr(entity, 'update'):
-                    entity.update(delta)
-        return len(active)
+        # Exponential decay scaling for aggressive performance recovery
+        return max(0.5, 1.0 - (avg_time - ideal_time) * 5.0)
 
-def create_optimized_loop(engine_callback, target_fps=144.0):
-    pacer = FramePacer(target_fps=target_fps)
-    batcher = EntityBatcher()
-    
-    def step_frame(entities):
-        ticks, avg_delta = pacer.sync()
-        processed = 0
-        for _ in range(ticks):
-            processed += batcher.optimize_ticks(entities, avg_delta)
-        engine_callback(ticks, avg_delta)
-        return processed, avg_delta
-        
-    return step_frame
+    def get_stats(self) -> Dict[str, Union[float, int]]:
+        """Returns telemetry data for system logging."""
+        return {
+            "target": self.target_fps,
+            "latency_ms": (sum(self.history) / len(self.history)) * 1000 if self.history else 0
+        }
+
+def patch_frame_logic(instance: FrameOptimizer, frame_delta: float) -> float:
+    """Orchestrator for runtime performance adjustment."""
+    return instance.compute_scaling_factor(frame_delta)
