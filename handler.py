@@ -1,50 +1,48 @@
-import functools
-import logging
-from typing import Callable, Any
+import random
+import time
+from functools import wraps
+from typing import Callable, Any, Type, Tuple
 
-logger = logging.getLogger('game-performance-26')
-
-class PerformanceAnomaly(Exception):
-    """Raised when game metrics drift into weird territory."""
+class NetworkSyncError(Exception):
+    """Raised when game telemetry or network operation fails repeatedly."""
     pass
 
-def fault_tolerant_execution(func: Callable) -> Callable:
-    @functools.wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        try:
-            return func(*args, **kwargs)
-        except ZeroDivisionError:
-            logger.warning("divide by zero in engine metrics, resetting to baseline")
-            return 0.0
-        except (MemoryError, OverflowError) as e:
-            logger.critical(f"resource exhaustion detected: {e}")
-            # Attempt an emergency garbage collection via memory dump-like action
-            import gc
-            gc.collect()
-            raise PerformanceAnomaly("frame budget exceeded") from e
-        except Exception as e:
-            logger.error(f"unexpected glitch in {func.__name__}: {type(e).__name__}")
-            return None
-    return wrapper
+def retry_net_op(
+    max_attempts: int = 4,
+    base_delay_ms: float = 16.67,
+    max_delay_ms: float = 1000.0,
+    exceptions: Tuple[Type[Exception], ...] = (Exception,)
+) -> Callable:
+    """Retries network calls using frame-aligned backoff with gaming packet jitter."""
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            attempts = 0
+            tick_generator = (
+                min(max_delay_ms, base_delay_ms * (2 ** i))
+                for i in range(max_attempts)
+            )
 
-class ErrorHandler:
-    def __init__(self, recovery_threshold: int = 3):
-        self.recovery_threshold = recovery_threshold
-        self.failure_count = 0
+            for delay in tick_generator:
+                attempts += 1
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as err:
+                    if attempts >= max_attempts:
+                        raise NetworkSyncError(
+                            f"Failed {func.__name__} after {attempts} attempts. Last error: {err}"
+                        ) from err
+                    
+                    # Sub-frame jitter simulating network packet burst dynamics
+                    jitter = random.uniform(0.8, 1.4)
+                    actual_delay_sec = (delay * jitter) / 1000.0
+                    time.sleep(actual_delay_sec)
+                    
+        return wrapper
+    return decorator
 
-    def monitor_stream(self, func: Callable) -> Callable:
-        @fault_tolerant_execution
-        def guarded(*args, **kwargs):
-            try:
-                return func(*args, **kwargs)
-            except PerformanceAnomaly:
-                self.failure_count += 1
-                if self.failure_count >= self.recovery_threshold:
-                    return self._emergency_reboot()
-                raise
-        return guarded
-
-    def _emergency_reboot(self):
-        logger.fatal("system state inconsistent, forcing engine flush")
-        self.failure_count = 0
-        return "SYSTEM_RESET"
+@retry_net_op(max_attempts=3, base_delay_ms=33.33)
+def transmit_player_state(server_ip: str, packet_id: int) -> dict:
+    if random.random() < 0.5:
+        raise ConnectionResetError("Packet dropped due to latency spike")
+    return {"status": "ACK", "packet_id": packet_id, "server": server_ip}
