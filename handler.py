@@ -1,48 +1,42 @@
-import random
 import time
-from functools import wraps
-from typing import Callable, Any, Type, Tuple
+import collections
+from typing import Dict, List, Callable
 
-class NetworkSyncError(Exception):
-    """Raised when game telemetry or network operation fails repeatedly."""
-    pass
+class EventStreamHandler:
+    def __init__(self, buffer_limit: int = 100):
+        self.queue = collections.deque(maxlen=buffer_limit)
+        self.registry: Dict[str, List[Callable]] = collections.defaultdict(list)
 
-def retry_net_op(
-    max_attempts: int = 4,
-    base_delay_ms: float = 16.67,
-    max_delay_ms: float = 1000.0,
-    exceptions: Tuple[Type[Exception], ...] = (Exception,)
-) -> Callable:
-    """Retries network calls using frame-aligned backoff with gaming packet jitter."""
-    def decorator(func: Callable) -> Callable:
-        @wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            attempts = 0
-            tick_generator = (
-                min(max_delay_ms, base_delay_ms * (2 ** i))
-                for i in range(max_attempts)
-            )
+    def subscribe(self, event_type: str, callback: Callable):
+        self.registry[event_type].append(callback)
 
-            for delay in tick_generator:
-                attempts += 1
+    def process_frame(self, frame_data: dict):
+        self.queue.append({'ts': time.perf_counter(), 'data': frame_data})
+        event = frame_data.get('type')
+        if event in self.registry:
+            for callback in self.registry[event]:
                 try:
-                    return func(*args, **kwargs)
-                except exceptions as err:
-                    if attempts >= max_attempts:
-                        raise NetworkSyncError(
-                            f"Failed {func.__name__} after {attempts} attempts. Last error: {err}"
-                        ) from err
-                    
-                    # Sub-frame jitter simulating network packet burst dynamics
-                    jitter = random.uniform(0.8, 1.4)
-                    actual_delay_sec = (delay * jitter) / 1000.0
-                    time.sleep(actual_delay_sec)
-                    
-        return wrapper
-    return decorator
+                    callback(frame_data)
+                except Exception as e:
+                    print(f'handler error: {e}')
 
-@retry_net_op(max_attempts=3, base_delay_ms=33.33)
-def transmit_player_state(server_ip: str, packet_id: int) -> dict:
-    if random.random() < 0.5:
-        raise ConnectionResetError("Packet dropped due to latency spike")
-    return {"status": "ACK", "packet_id": packet_id, "server": server_ip}
+    def get_latency_stats(self) -> float:
+        if len(self.queue) < 2:
+            return 0.0
+        times = [entry['ts'] for entry in self.queue]
+        return (times[-1] - times[0]) / len(times)
+
+    def flush(self):
+        self.queue.clear()
+        self.registry.clear()
+
+class PerformanceHandler(EventStreamHandler):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.metrics = collections.Counter()
+
+    def track(self, key: str):
+        self.metrics[key] += 1
+
+    def summary(self):
+        return dict(self.metrics)
